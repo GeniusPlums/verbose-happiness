@@ -113,30 +113,19 @@ function getProvidersList() {
   return providerList;
 }
 
-const myFormat = winston.format.printf(function ({
-  timestamp,
-  context,
-  level,
-  message,
-  stack,
-}: {
-  timestamp: string;
-  context: string;  // Add type definition here
-  level: string;
-  message: string;
-  stack?: string;
-}) {
+const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo) => {
   let ctx: any = {};
   try {
-    ctx = JSON.parse(context as string);  // Type assertion here
+    ctx = JSON.parse(info.context as string);
   } catch (e) {}
-  return `[${timestamp}] [${level}] [${process.env.LAUDSPEAKER_PROCESS_TYPE}-${
+  
+  return `[${info.timestamp}] [${info.level}] [${process.env.LAUDSPEAKER_PROCESS_TYPE}-${
     process.pid
   }]${ctx?.class ? ' [Class: ' + ctx?.class + ']' : ''}${
     ctx?.method ? ' [Method: ' + ctx?.method + ']' : ''
   }${ctx?.session ? ' [User: ' + ctx?.user + ']' : ''}${
     ctx?.session ? ' [Session: ' + ctx?.session + ']' : ''
-  }: ${message} ${stack ? '{stack: ' + stack : ''} ${
+  }: ${info.message} ${info.stack ? '{stack: ' + info.stack : ''} ${
     ctx.cause ? 'cause: ' + ctx.cause : ''
   } ${ctx.message ? 'message: ' + ctx.message : ''} ${
     ctx.name ? 'name: ' + ctx.name + '}' : ''
