@@ -20,7 +20,14 @@ ENV REACT_APP_ONBOARDING_API_KEY=${REACT_APP_ONBOARDING_API_KEY}
 WORKDIR /app
 COPY ./packages/client/package.json /app/
 COPY ./package-lock.json /app/
-RUN npm install --legacy-peer-deps
+
+# Fixed npm config and install commands
+RUN npm config set fetch-retry-maxtimeout="600000" && \
+    npm config set fetch-retry-mintimeout="10000" && \
+    npm config set fetch-retries="5" && \
+    npm install --legacy-peer-deps --network-timeout=600000 && \
+    npm install @sentry/cli --legacy-peer-deps
+
 COPY . /app
 RUN npm run format:client
 RUN npm run build:client
@@ -39,13 +46,19 @@ ENV SENTRY_PROJECT=${BACKEND_SENTRY_PROJECT}
 WORKDIR /app
 COPY --from=frontend_build /app/packages/client/package.json /app/
 COPY ./packages/server/package.json /app
-RUN npm install --legacy-peer-deps
+
+# Fixed npm config and install commands for backend
+RUN npm config set fetch-retry-maxtimeout="600000" && \
+    npm config set fetch-retry-mintimeout="10000" && \
+    npm config set fetch-retries="5" && \
+    npm install --legacy-peer-deps --network-timeout=600000 && \
+    npm install @sentry/cli --legacy-peer-deps
+
 COPY . /app
 RUN npm run build:server
 # Basically an if else but more readable in two lines
 RUN if [ -z "$BACKEND_SENTRY_AUTH_TOKEN" ] ; then echo "Not building sourcemaps, BACKEND_SENTRY_AUTH_TOKEN not provided" ; fi
 RUN if [ ! -z "$BACKEND_SENTRY_AUTH_TOKEN" ] ; then npm run build:server:sourcemaps ; fi
-
 
 RUN ./node_modules/.bin/sentry-cli releases propose-version > /app/SENTRY_RELEASE
 
