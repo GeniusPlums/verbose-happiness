@@ -53,7 +53,8 @@ RUN npm config set fetch-retry-maxtimeout="600000" && \
     npm config set fetch-retry-mintimeout="10000" && \
     npm config set fetch-retries="5" && \
     npm install --legacy-peer-deps --network-timeout=600000 && \
-    npm install @sentry/cli --legacy-peer-deps
+    npm install @sentry/cli --legacy-peer-deps && \
+    npm install -g cross-env
 
 COPY . /app
 RUN npm run build:server
