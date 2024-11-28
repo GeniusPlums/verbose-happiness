@@ -238,3 +238,4 @@ We would love to see you contribute to Laudspeaker. We are specifically seeking 
 [laudspeaker_ee_license]: https://www.mongodb.com/licensing/server-side-public-license
 
 -->
+# verbose-happiness
