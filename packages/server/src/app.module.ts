@@ -119,10 +119,16 @@ const myFormat = winston.format.printf(function ({
   level,
   message,
   stack,
+}: {
+  timestamp: string;
+  context: string;  // Add type definition here
+  level: string;
+  message: string;
+  stack?: string;
 }) {
   let ctx: any = {};
   try {
-    ctx = JSON.parse(context);
+    ctx = JSON.parse(context as string);  // Type assertion here
   } catch (e) {}
   return `[${timestamp}] [${level}] [${process.env.LAUDSPEAKER_PROCESS_TYPE}-${
     process.pid
