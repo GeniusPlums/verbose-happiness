@@ -4,7 +4,7 @@ on:
     inputs:
       image-repository:
         description: Docker image to deploy
-        default: laudspeaker/laudspeaker
+        default: geniusplums/laudspeaker
         required: false
         type: string
       image-tag:
