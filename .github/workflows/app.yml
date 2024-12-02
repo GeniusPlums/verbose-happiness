@@ -1,4 +1,10 @@
-name: laudspeaker
+name: Deploy to DigitalOcean
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
 services:
   - name: laudspeaker-service
     image:
