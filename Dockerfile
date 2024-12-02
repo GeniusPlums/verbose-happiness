@@ -52,11 +52,17 @@ RUN cd packages/client && \
     # Create a fallback type declaration if needed
     echo "declare module 'react-helmet';" > react-helmet.d.ts
 
-# Update TypeScript config to include custom type definitions
+# Update TypeScript config
 RUN cd packages/client && \
     if [ -f tsconfig.json ]; then \
-    mv tsconfig.json tsconfig.json.bak && \
-    jq '.compilerOptions.skipLibCheck = true | .compilerOptions.noImplicitAny = false' tsconfig.json.bak > tsconfig.json; \
+        cp tsconfig.json tsconfig.json.bak && \
+        echo '{' > tsconfig.json && \
+        echo '  "extends": "./tsconfig.json.bak",' >> tsconfig.json && \
+        echo '  "compilerOptions": {' >> tsconfig.json && \
+        echo '    "skipLibCheck": true,' >> tsconfig.json && \
+        echo '    "noImplicitAny": false' >> tsconfig.json && \
+        echo '  }' >> tsconfig.json && \
+        echo '}' >> tsconfig.json; \
     fi
 
 # Create production environment file
@@ -87,6 +93,7 @@ RUN cd packages/client && \
 # Handle Sentry source maps
 RUN if [ -z "$FRONTEND_SENTRY_AUTH_TOKEN" ] ; then echo "Not building sourcemaps, FRONTEND_SENTRY_AUTH_TOKEN not provided" ; fi
 RUN if [ ! -z "$FRONTEND_SENTRY_AUTH_TOKEN" ] ; then REACT_APP_SENTRY_RELEASE=$(./node_modules/.bin/sentry-cli releases propose-version) npm run build:client:sourcemaps ; fi
+
 
 FROM node:16 as backend_build
 ARG BACKEND_SENTRY_AUTH_TOKEN
