@@ -33,11 +33,16 @@ RUN npm config set fetch-retry-maxtimeout="600000" && \
     npm install --legacy-peer-deps --no-audit --no-optional --network-timeout=600000 && \
     npm install @sentry/cli --legacy-peer-deps && \
     npm install -g cross-env && \
-    npm install --save-dev @babel/plugin-proposal-private-property-in-object
+    npm install --save-dev @babel/plugin-proposal-private-property-in-object && \
+    npm install --save-dev prettier
 
 # Copy source files
 COPY . /app
-RUN npm run format:client
+
+# Format code using locally installed prettier
+RUN cd packages/client && \
+    npm install --save-dev prettier && \
+    npm run format:client
 
 # Build frontend with optimizations
 RUN npx update-browserslist-db@latest && \
