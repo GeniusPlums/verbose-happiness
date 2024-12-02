@@ -89,7 +89,8 @@ RUN npm config set fetch-retry-maxtimeout="600000" && \
     npm config set fetch-retry-mintimeout="10000" && \
     npm config set fetch-retries="5" && \
     npm cache clean --force && \
-    npm install --legacy-peer-deps --no-audit --no-optional --network-timeout=600000 && \
+    npm install --force --no-audit --no-optional --network-timeout=600000 && \
+    npm install --save @nestjs/common@9.4.3 && \
     npm install --save-dev @types/express @types/multer && \
     npm install -g cross-env
 
