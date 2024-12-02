@@ -34,23 +34,19 @@ RUN npm config set fetch-retry-maxtimeout="600000" && \
     npm install --legacy-peer-deps --no-audit --no-optional --network-timeout=600000 && \
     npm install @sentry/cli --legacy-peer-deps && \
     npm install -g cross-env && \
-    npm install --save-dev @babel/plugin-proposal-private-property-in-object
+    npm install --save-dev @babel/plugin-proposal-private-property-in-object && \
+    npm install --save-dev @types/lodash @types/react-helmet
 
 # Copy source files
 COPY . /app
 
-# Create TypeScript declaration file for react-helmet
+# Install type definitions in client package
 RUN cd packages/client && \
-    mkdir -p src/@types && \
-    echo 'declare module "react-helmet" {' > src/@types/react-helmet.d.ts && \
-    echo '  import { Component } from "react";' >> src/@types/react-helmet.d.ts && \
-    echo '  export interface HelmetProps {' >> src/@types/react-helmet.d.ts && \
-    echo '    title?: string;' >> src/@types/react-helmet.d.ts && \
-    echo '    meta?: Array<{name?: string; content?: string; property?: string;}>;' >> src/@types/react-helmet.d.ts && \
-    echo '    [key: string]: any;' >> src/@types/react-helmet.d.ts && \
-    echo '  }' >> src/@types/react-helmet.d.ts && \
-    echo '  export class Helmet extends Component<HelmetProps> {}' >> src/@types/react-helmet.d.ts && \
-    echo '}' >> src/@types/react-helmet.d.ts
+    npm install --save-dev @types/lodash @types/react-helmet
+
+# Create a directory for any additional type declarations if needed
+RUN cd packages/client && \
+    mkdir -p src/@types
 
 # Format code using npx prettier directly
 RUN cd packages/client && \
@@ -62,6 +58,7 @@ RUN npx update-browserslist-db@latest && \
     GENERATE_SOURCEMAP=false \
     DISABLE_ESLINT_PLUGIN=true \
     NODE_OPTIONS="--max-old-space-size=8192" \
+    TS_NODE_TRANSPILE_ONLY=true \
     npm run build:prod -w packages/client --production
 
 # Handle Sentry source maps
