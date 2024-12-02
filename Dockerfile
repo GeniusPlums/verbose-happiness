@@ -42,7 +42,7 @@ COPY . /app
 # Format code using locally installed prettier
 RUN cd packages/client && \
     npm install --save-dev prettier && \
-    npm run format:client
+    npm run format
 
 # Build frontend with optimizations
 RUN npx update-browserslist-db@latest && \
