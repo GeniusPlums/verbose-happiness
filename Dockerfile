@@ -112,7 +112,7 @@ RUN mkdir -p /app/packages/server/src/@types && \
 RUN cd packages/server && \
     sed -i '/"dependencies"/,/}/{ /"@nestjs\/common"/d; /"@nestjs\/core"/d; /"@nestjs\/websockets"/d; /"@nestjs\/platform-socket.io"/d; /"@nestjs\/platform-express"/d; /"@nestjs\/bullmq"/d; /"@nestjs\/cache-manager"/d; /"@nestjs\/graphql"/d; /"@liaoliaots\/nestjs-redis"/d; }' package.json
 
-# Install dependencies in correct order
+# Install dependencies in correct order with force resolution for cache-manager
 RUN cd packages/server && \
     npm install -g npm@8.19.2 && \
     npm install -g cross-env && \
@@ -123,11 +123,12 @@ RUN cd packages/server && \
         @nestjs/platform-socket.io@9.4.3 \
         @nestjs/platform-express@9.4.3 \
         @nestjs/bullmq@9.4.3 \
-        @nestjs/cache-manager@1.0.0 \
-        @nestjs/graphql@9.4.3 && \
+        @nestjs/graphql@9.4.3 \
+        cache-manager@4.1.0 \
+        @nestjs/cache-manager@1.0.0 && \
     npm install --save @liaoliaots/nestjs-redis@9.0.5 && \
     npm install --save-dev @types/express @types/multer && \
-    npm install --legacy-peer-deps
+    npm install --force
 
 # Build backend
 RUN cd packages/server && npm run build
