@@ -4,7 +4,18 @@ set -e
 export SENTRY_RELEASE=$(cat SENTRY_RELEASE)
 
 echo "Running clickhouse-migrations"
-clickhouse-migrations migrate --host ${CLICKHOUSE_HOST:-localhost} --port ${CLICKHOUSE_PORT:-8123} --username ${CLICKHOUSE_USER:-default} --password ${CLICKHOUSE_PASSWORD:-}
+if [ -z "${CLICKHOUSE_PASSWORD}" ]; then
+    clickhouse-migrations migrate \
+        --host ${CLICKHOUSE_HOST:-localhost} \
+        --port ${CLICKHOUSE_PORT:-8123} \
+        --username ${CLICKHOUSE_USER:-default}
+else
+    clickhouse-migrations migrate \
+        --host ${CLICKHOUSE_HOST:-localhost} \
+        --port ${CLICKHOUSE_PORT:-8123} \
+        --username ${CLICKHOUSE_USER:-default} \
+        --password "${CLICKHOUSE_PASSWORD}"
+fi
 
 echo "Running Typeorm migrations"
 typeorm-ts-node-commonjs migration:run -d packages/server/src/data-source.ts
