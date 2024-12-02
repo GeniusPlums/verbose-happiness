@@ -123,7 +123,7 @@ RUN cd packages/server && \
         @nestjs/websockets@9.4.3 \
         @nestjs/platform-socket.io@9.4.3 \
         @nestjs/platform-express@9.4.3 \
-        @nestjs/bullmq@9.4.3 \
+        @nestjs/bullmq@10.2.3 \
         @nestjs/graphql@9.4.3 \
         @liaoliaots/nestjs-redis@9.0.5 \
         cache-manager@4.1.0 \
