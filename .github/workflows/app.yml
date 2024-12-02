@@ -12,9 +12,7 @@ services:
       registry: registry.hub.docker.com
       repository: geniusplums/laudspeaker
       tag: latest
-      registry_credentials:
-        username: ${DOCKER_USERNAME}
-        password: ${DOCKER_PASSWORD}
+      registry_credentials: "username:password"
     instance_count: 1
     instance_size_slug: basic-xxs
     http_port: 8080
