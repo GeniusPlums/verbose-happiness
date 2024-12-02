@@ -33,7 +33,8 @@ RUN npm config set fetch-retry-maxtimeout="600000" && \
     npm install --legacy-peer-deps --no-audit --no-optional --network-timeout=600000 && \
     npm install @sentry/cli --legacy-peer-deps && \
     npm install -g cross-env && \
-    npm install --save-dev @babel/plugin-proposal-private-property-in-object
+    npm install --save-dev @babel/plugin-proposal-private-property-in-object && \
+    npm install --save-dev eslint-config-airbnb-typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser
 
 # Copy source files
 COPY . /app
@@ -42,6 +43,10 @@ COPY . /app
 RUN cd packages/client && \
     npm install --save-dev prettier && \
     npx prettier --write "src/**/*.ts" "src/**/*.tsx"
+
+# Install additional dependencies for the client package
+RUN cd packages/client && \
+    npm install --save-dev eslint-config-airbnb-typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser
 
 # Build frontend with optimizations
 RUN npx update-browserslist-db@latest && \
