@@ -95,6 +95,12 @@ RUN if [ -z "$FRONTEND_SENTRY_AUTH_TOKEN" ] ; then echo "Not building sourcemaps
 RUN if [ ! -z "$FRONTEND_SENTRY_AUTH_TOKEN" ] ; then REACT_APP_SENTRY_RELEASE=$(./node_modules/.bin/sentry-cli releases propose-version) npm run build:client:sourcemaps ; fi
 
 
+# To build: docker build -f Dockerfile -t laudspeaker/laudspeaker:latest .
+# To run: docker run -it -p 80:80 --env-file packages/server/.env --rm laudspeaker/laudspeaker:latest
+
+FROM node:16 as frontend_build
+# ... (previous frontend build stage remains the same) ...
+
 FROM node:16 as backend_build
 ARG BACKEND_SENTRY_AUTH_TOKEN
 ARG BACKEND_SENTRY_ORG=laudspeaker-rb
@@ -112,16 +118,16 @@ WORKDIR /app
 COPY --from=frontend_build /app/packages/client/package.json /app/
 COPY ./packages/server/package.json /app/
 
-# First modify package.json to update all NestJS dependencies
-RUN sed -i 's/"@nestjs\/common": "[^"]*"/"@nestjs\/common": "^10.0.0"/g' package.json && \
-    sed -i 's/"@nestjs\/core": "[^"]*"/"@nestjs\/core": "^10.0.0"/g' package.json && \
-    sed -i 's/"@nestjs\/websockets": "[^"]*"/"@nestjs\/websockets": "^10.0.0"/g' package.json && \
-    sed -i 's/"@nestjs\/platform-socket.io": "[^"]*"/"@nestjs\/platform-socket.io": "^10.0.0"/g' package.json && \
-    sed -i 's/"@nestjs\/platform-express": "[^"]*"/"@nestjs\/platform-express": "^10.0.0"/g' package.json && \
-    sed -i 's/"@nestjs\/bullmq": "[^"]*"/"@nestjs\/bullmq": "^10.0.0"/g' package.json && \
-    sed -i 's/"@nestjs\/cache-manager": "[^"]*"/"@nestjs\/cache-manager": "^10.0.0"/g' package.json && \
-    sed -i 's/"@nestjs\/graphql": "[^"]*"/"@nestjs\/graphql": "^10.0.0"/g' package.json && \
-    sed -i 's/"@liaoliaots\/nestjs-redis": "[^"]*"/"@liaoliaots\/nestjs-redis": "^10.0.0"/g' package.json
+# First modify package.json to update all NestJS dependencies with specific versions
+RUN sed -i 's/"@nestjs\/common": "[^"]*"/"@nestjs\/common": "^9.4.3"/g' package.json && \
+    sed -i 's/"@nestjs\/core": "[^"]*"/"@nestjs\/core": "^9.4.3"/g' package.json && \
+    sed -i 's/"@nestjs\/websockets": "[^"]*"/"@nestjs\/websockets": "^9.4.3"/g' package.json && \
+    sed -i 's/"@nestjs\/platform-socket.io": "[^"]*"/"@nestjs\/platform-socket.io": "^9.4.3"/g' package.json && \
+    sed -i 's/"@nestjs\/platform-express": "[^"]*"/"@nestjs\/platform-express": "^9.4.3"/g' package.json && \
+    sed -i 's/"@nestjs\/bullmq": "[^"]*"/"@nestjs\/bullmq": "^9.4.3"/g' package.json && \
+    sed -i 's/"@nestjs\/cache-manager": "[^"]*"/"@nestjs\/cache-manager": "^1.0.0"/g' package.json && \
+    sed -i 's/"@nestjs\/graphql": "[^"]*"/"@nestjs\/graphql": "^9.4.3"/g' package.json && \
+    sed -i 's/"@liaoliaots\/nestjs-redis": "[^"]*"/"@liaoliaots\/nestjs-redis": "^9.0.4"/g' package.json
 
 # Install dependencies
 RUN npm config set fetch-retry-maxtimeout="600000" && \
@@ -160,6 +166,7 @@ RUN mkdir -p /app/packages/server/src/@types && \
 # Copy and build backend
 COPY . /app
 RUN npm run build:server
+
 
 # Handle backend source maps
 RUN if [ -z "$BACKEND_SENTRY_AUTH_TOKEN" ] ; then echo "Not building sourcemaps, BACKEND_SENTRY_AUTH_TOKEN not provided" ; fi
