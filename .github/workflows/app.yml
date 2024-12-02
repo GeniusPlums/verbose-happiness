@@ -1,0 +1,25 @@
+name: laudspeaker
+services:
+  - name: laudspeaker-service
+    image:
+      registry_type: DOCKER_HUB
+      registry: registry.hub.docker.com
+      repository: geniusplums/laudspeaker
+      tag: latest
+      registry_credentials:
+        username: ${DOCKER_USERNAME}
+        password: ${DOCKER_PASSWORD}
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    http_port: 8080
+    routes:
+      - path: /
+    envs:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "8080"
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 30
+      period_seconds: 60
