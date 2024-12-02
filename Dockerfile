@@ -82,16 +82,41 @@ WORKDIR /app
 
 # Copy package files for backend
 COPY --from=frontend_build /app/packages/client/package.json /app/
-COPY ./packages/server/package.json /app
+COPY ./packages/server/package.json /app/
 
-# Install backend dependencies with optimization
+# Install dependencies
 RUN npm config set fetch-retry-maxtimeout="600000" && \
     npm config set fetch-retry-mintimeout="10000" && \
     npm config set fetch-retries="5" && \
     npm cache clean --force && \
     npm install --legacy-peer-deps --no-audit --no-optional --network-timeout=600000 && \
-    npm install @sentry/cli --legacy-peer-deps && \
+    npm install --save-dev @types/express @types/multer && \
     npm install -g cross-env
+
+# Create type declarations
+RUN mkdir -p /app/packages/server/src/@types && \
+    echo 'import { User } from "../entities/user.entity";' > /app/packages/server/src/@types/express.d.ts && \
+    echo 'declare global {' >> /app/packages/server/src/@types/express.d.ts && \
+    echo '  namespace Express {' >> /app/packages/server/src/@types/express.d.ts && \
+    echo '    interface Request {' >> /app/packages/server/src/@types/express.d.ts && \
+    echo '      user?: User;' >> /app/packages/server/src/@types/express.d.ts && \
+    echo '    }' >> /app/packages/server/src/@types/express.d.ts && \
+    echo '    interface User extends User {}' >> /app/packages/server/src/@types/express.d.ts && \
+    echo '    namespace Multer {' >> /app/packages/server/src/@types/express.d.ts && \
+    echo '      interface File {' >> /app/packages/server/src/@types/express.d.ts && \
+    echo '        fieldname: string;' >> /app/packages/server/src/@types/express.d.ts && \
+    echo '        originalname: string;' >> /app/packages/server/src/@types/express.d.ts && \
+    echo '        encoding: string;' >> /app/packages/server/src/@types/express.d.ts && \
+    echo '        mimetype: string;' >> /app/packages/server/src/@types/express.d.ts && \
+    echo '        size: number;' >> /app/packages/server/src/@types/express.d.ts && \
+    echo '        destination: string;' >> /app/packages/server/src/@types/express.d.ts && \
+    echo '        filename: string;' >> /app/packages/server/src/@types/express.d.ts && \
+    echo '        path: string;' >> /app/packages/server/src/@types/express.d.ts && \
+    echo '        buffer: Buffer;' >> /app/packages/server/src/@types/express.d.ts && \
+    echo '      }' >> /app/packages/server/src/@types/express.d.ts && \
+    echo '    }' >> /app/packages/server/src/@types/express.d.ts && \
+    echo '  }' >> /app/packages/server/src/@types/express.d.ts && \
+    echo '}' >> /app/packages/server/src/@types/express.d.ts
 
 # Copy and build backend
 COPY . /app
