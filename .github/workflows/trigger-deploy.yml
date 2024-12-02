@@ -18,7 +18,7 @@ jobs:
     name: Redeploy staging
     uses: ./.github/workflows/deploy.yml
     with:
-      image-repository: laudspeaker/laudspeaker
+      image-repository: geniusplums/laudspeaker
       image-tag: ${{ inputs.tag }}
       env: ${{ inputs.env }}
     secrets: inherit
