@@ -34,15 +34,23 @@ RUN npm config set fetch-retry-maxtimeout="600000" && \
     npm install --legacy-peer-deps --no-audit --no-optional --network-timeout=600000 && \
     npm install @sentry/cli --legacy-peer-deps && \
     npm install -g cross-env && \
-    npm install --save-dev @babel/plugin-proposal-private-property-in-object && \
-    npm install --save-dev @types/react-helmet
+    npm install --save-dev @babel/plugin-proposal-private-property-in-object
 
 # Copy source files
 COPY . /app
 
-# Install type definitions in client package
+# Create TypeScript declaration file for react-helmet
 RUN cd packages/client && \
-    npm install --save-dev @types/react-helmet
+    mkdir -p src/@types && \
+    echo 'declare module "react-helmet" {' > src/@types/react-helmet.d.ts && \
+    echo '  import { Component } from "react";' >> src/@types/react-helmet.d.ts && \
+    echo '  export interface HelmetProps {' >> src/@types/react-helmet.d.ts && \
+    echo '    title?: string;' >> src/@types/react-helmet.d.ts && \
+    echo '    meta?: Array<{name?: string; content?: string; property?: string;}>;' >> src/@types/react-helmet.d.ts && \
+    echo '    [key: string]: any;' >> src/@types/react-helmet.d.ts && \
+    echo '  }' >> src/@types/react-helmet.d.ts && \
+    echo '  export class Helmet extends Component<HelmetProps> {}' >> src/@types/react-helmet.d.ts && \
+    echo '}' >> src/@types/react-helmet.d.ts
 
 # Format code using npx prettier directly
 RUN cd packages/client && \
