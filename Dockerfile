@@ -25,18 +25,25 @@ WORKDIR /app
 COPY ./packages/client/package.json /app/
 COPY ./package-lock.json /app/
 
+# Install global dependencies
+RUN npm install -g cross-env env-cmd
+
 # Fixed npm config and install commands with optimization
 RUN npm config set fetch-retry-maxtimeout="600000" && \
     npm config set fetch-retry-mintimeout="10000" && \
     npm config set fetch-retries="5" && \
     npm cache clean --force && \
     npm install --legacy-peer-deps --no-audit --no-optional --network-timeout=600000 && \
-    npm install -g cross-env && \
     npm install --save-dev @babel/plugin-proposal-private-property-in-object && \
     npm install --save-dev env-cmd
 
 # Copy source files
 COPY . /app
+
+# Install dependencies in client directory
+RUN cd packages/client && \
+    npm install --save-dev env-cmd && \
+    npm install
 
 # Ensure .env.prod exists and contains required environment variables
 RUN cd packages/client && \
@@ -51,6 +58,7 @@ RUN cd packages/client && \
     GENERATE_SOURCEMAP=false \
     NODE_OPTIONS="--max-old-space-size=4096" \
     CI=false \
+    PATH="$PATH:/app/node_modules/.bin" \
     npm run build:prod
 
 # Handle Sentry source maps
