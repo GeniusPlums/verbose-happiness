@@ -8,12 +8,12 @@ if [ -z "${CLICKHOUSE_PASSWORD}" ]; then
     clickhouse-migrations migrate \
         --host ${CLICKHOUSE_HOST:-localhost} \
         --port ${CLICKHOUSE_PORT:-8123} \
-        --username ${CLICKHOUSE_USER:-default}
+        --user ${CLICKHOUSE_USER:-default}
 else
     clickhouse-migrations migrate \
         --host ${CLICKHOUSE_HOST:-localhost} \
         --port ${CLICKHOUSE_PORT:-8123} \
-        --username ${CLICKHOUSE_USER:-default} \
+        --user ${CLICKHOUSE_USER:-default} \
         --password "${CLICKHOUSE_PASSWORD}"
 fi
 
