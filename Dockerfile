@@ -1,3 +1,6 @@
+# To build: docker build -f Dockerfile -t laudspeaker/laudspeaker:latest .
+# To run: docker run -it -p 80:80 --env-file packages/server/.env --rm laudspeaker/laudspeaker:latest
+
 FROM node:16 as frontend_build
 ARG EXTERNAL_URL
 ARG FRONTEND_SENTRY_AUTH_TOKEN
@@ -39,24 +42,10 @@ RUN npm config set fetch-retry-maxtimeout="600000" && \
 # Copy the rest of the application
 COPY . .
 
-# Install client dependencies including ESLint configs
+# Install client dependencies
 RUN cd packages/client && \
     npm install --save-dev @babel/plugin-proposal-private-property-in-object && \
-    npm install --save-dev eslint-config-airbnb-typescript && \
-    npm install --save-dev @typescript-eslint/parser && \
-    npm install --save-dev @typescript-eslint/eslint-plugin && \
-    npm install --save-dev eslint-config-airbnb && \
-    npm install --save-dev eslint-plugin-import && \
-    npm install --save-dev eslint-plugin-jsx-a11y && \
-    npm install --save-dev eslint-plugin-react && \
-    npm install --save-dev eslint-plugin-react-hooks && \
     npm install
-
-# Create temporary .eslintrc.js that disables the problematic config
-RUN cd packages/client && \
-    echo "module.exports = { extends: ['react-app'] }" > .eslintrc.js.tmp && \
-    mv .eslintrc.js .eslintrc.js.bak && \
-    mv .eslintrc.js.tmp .eslintrc.js
 
 # Create production environment file
 RUN cd packages/client && \
@@ -66,17 +55,20 @@ RUN cd packages/client && \
     echo "REACT_APP_POSTHOG_KEY=${REACT_APP_POSTHOG_KEY}" >> .env.prod && \
     echo "REACT_APP_ONBOARDING_API_KEY=${REACT_APP_ONBOARDING_API_KEY}" >> .env.prod
 
-# Build with ESLINT_NO_DEV_ERRORS=true
+# Create .env for build
 RUN cd packages/client && \
+    echo "DISABLE_ESLINT_PLUGIN=true" > .env && \
+    echo "ESLINT_NO_DEV_ERRORS=true" >> .env
+
+# Build with ESLint disabled
+RUN cd packages/client && \
+    DISABLE_ESLINT_PLUGIN=true \
+    EXTEND_ESLINT=false \
     ESLINT_NO_DEV_ERRORS=true \
     GENERATE_SOURCEMAP=false \
     NODE_OPTIONS="--max-old-space-size=4096" \
     CI=false \
     npm run build:prod
-
-# Restore original .eslintrc.js
-RUN cd packages/client && \
-    mv .eslintrc.js.bak .eslintrc.js
 
 # Handle Sentry source maps
 RUN if [ -z "$FRONTEND_SENTRY_AUTH_TOKEN" ] ; then echo "Not building sourcemaps, FRONTEND_SENTRY_AUTH_TOKEN not provided" ; fi
@@ -86,11 +78,13 @@ FROM node:16 as backend_build
 ARG BACKEND_SENTRY_AUTH_TOKEN
 ARG BACKEND_SENTRY_ORG=laudspeaker-rb
 ARG BACKEND_SENTRY_PROJECT=node
+
 ENV SENTRY_AUTH_TOKEN=${BACKEND_SENTRY_AUTH_TOKEN}
 ENV SENTRY_ORG=${BACKEND_SENTRY_ORG}
 ENV SENTRY_PROJECT=${BACKEND_SENTRY_PROJECT}
 ENV NODE_OPTIONS="--max-old-space-size=8192"
 ENV NODE_ENV=production
+
 WORKDIR /app
 
 # Copy package files for backend
