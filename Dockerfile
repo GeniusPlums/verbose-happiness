@@ -1,6 +1,12 @@
 # To build: docker build -f Dockerfile -t laudspeaker/laudspeaker:latest .
 # To run: docker run -it -p 80:80 --env-file packages/server/.env --rm laudspeaker/laudspeaker:latest
 
+FROM node:16 as base
+WORKDIR /app
+COPY package*.json ./
+COPY packages/client/package*.json ./packages/client/
+COPY packages/server/package*.json ./packages/server/
+
 FROM node:16 as frontend_build
 ARG EXTERNAL_URL
 ARG FRONTEND_SENTRY_AUTH_TOKEN
@@ -11,7 +17,6 @@ ARG REACT_APP_POSTHOG_HOST
 ARG REACT_APP_POSTHOG_KEY
 ARG REACT_APP_ONBOARDING_API_KEY
 
-# Set environment variables
 ENV SENTRY_AUTH_TOKEN=${FRONTEND_SENTRY_AUTH_TOKEN}
 ENV SENTRY_ORG=${FRONTEND_SENTRY_ORG}
 ENV SENTRY_PROJECT=${FRONTEND_SENTRY_PROJECT}
@@ -25,45 +30,16 @@ ENV NODE_ENV=production
 ENV TS_NODE_TRANSPILE_ONLY=true
 
 WORKDIR /app
+COPY --from=base /app ./
+COPY packages/client ./packages/client
 
-# Copy package files first
-COPY package.json package-lock.json ./
-COPY packages/client/package.json ./packages/client/
-
-# Install global dependencies
-RUN npm install -g cross-env env-cmd
-
-# Install root dependencies
-RUN npm config set fetch-retry-maxtimeout="600000" && \
-    npm config set fetch-retry-mintimeout="10000" && \
-    npm config set fetch-retries="5" && \
-    npm cache clean --force && \
-    npm install --legacy-peer-deps --no-audit
-
-# Copy the rest of the application
-COPY . .
-
-# Install client dependencies including type definitions
+# Install and build frontend
 RUN cd packages/client && \
+    npm install --legacy-peer-deps && \
     npm install --save-dev @babel/plugin-proposal-private-property-in-object && \
     npm install --save-dev @types/react-helmet && \
     npm install --save react-helmet && \
-    npm install && \
-    # Create a fallback type declaration if needed
     echo "declare module 'react-helmet';" > react-helmet.d.ts
-
-# Update TypeScript config
-RUN cd packages/client && \
-    if [ -f tsconfig.json ]; then \
-        cp tsconfig.json tsconfig.json.bak && \
-        echo '{' > tsconfig.json && \
-        echo '  "extends": "./tsconfig.json.bak",' >> tsconfig.json && \
-        echo '  "compilerOptions": {' >> tsconfig.json && \
-        echo '    "skipLibCheck": true,' >> tsconfig.json && \
-        echo '    "noImplicitAny": false' >> tsconfig.json && \
-        echo '  }' >> tsconfig.json && \
-        echo '}' >> tsconfig.json; \
-    fi
 
 # Create production environment file
 RUN cd packages/client && \
@@ -73,13 +49,7 @@ RUN cd packages/client && \
     echo "REACT_APP_POSTHOG_KEY=${REACT_APP_POSTHOG_KEY}" >> .env.prod && \
     echo "REACT_APP_ONBOARDING_API_KEY=${REACT_APP_ONBOARDING_API_KEY}" >> .env.prod
 
-# Create .env for build
-RUN cd packages/client && \
-    echo "DISABLE_ESLINT_PLUGIN=true" > .env && \
-    echo "ESLINT_NO_DEV_ERRORS=true" >> .env && \
-    echo "TSC_COMPILE_ON_ERROR=true" >> .env
-
-# Build with TypeScript and ESLint warnings disabled
+# Build frontend
 RUN cd packages/client && \
     DISABLE_ESLINT_PLUGIN=true \
     EXTEND_ESLINT=false \
@@ -90,16 +60,13 @@ RUN cd packages/client && \
     CI=false \
     npm run build:prod
 
-# Handle Sentry source maps
-RUN if [ -z "$FRONTEND_SENTRY_AUTH_TOKEN" ] ; then echo "Not building sourcemaps, FRONTEND_SENTRY_AUTH_TOKEN not provided" ; fi
-RUN if [ ! -z "$FRONTEND_SENTRY_AUTH_TOKEN" ] ; then REACT_APP_SENTRY_RELEASE=$(./node_modules/.bin/sentry-cli releases propose-version) npm run build:client:sourcemaps ; fi
-
-
-# To build: docker build -f Dockerfile -t laudspeaker/laudspeaker:latest .
-# To run: docker run -it -p 80:80 --env-file packages/server/.env --rm laudspeaker/laudspeaker:latest
-
-FROM node:16 as frontend_build
-# ... (previous frontend build stage remains the same) ...
+# Handle frontend source maps
+RUN cd packages/client && \
+    if [ -z "$FRONTEND_SENTRY_AUTH_TOKEN" ] ; then \
+        echo "Not building sourcemaps, FRONTEND_SENTRY_AUTH_TOKEN not provided" ; \
+    else \
+        REACT_APP_SENTRY_RELEASE=$(./node_modules/.bin/sentry-cli releases propose-version) npm run build:client:sourcemaps ; \
+    fi
 
 FROM node:16 as backend_build
 ARG BACKEND_SENTRY_AUTH_TOKEN
@@ -113,30 +80,8 @@ ENV NODE_OPTIONS="--max-old-space-size=8192"
 ENV NODE_ENV=production
 
 WORKDIR /app
-
-# Copy package files for backend
-COPY --from=frontend_build /app/packages/client/package.json /app/
-COPY ./packages/server/package.json /app/
-
-# First modify package.json to update all NestJS dependencies with specific versions
-RUN sed -i 's/"@nestjs\/common": "[^"]*"/"@nestjs\/common": "^9.4.3"/g' package.json && \
-    sed -i 's/"@nestjs\/core": "[^"]*"/"@nestjs\/core": "^9.4.3"/g' package.json && \
-    sed -i 's/"@nestjs\/websockets": "[^"]*"/"@nestjs\/websockets": "^9.4.3"/g' package.json && \
-    sed -i 's/"@nestjs\/platform-socket.io": "[^"]*"/"@nestjs\/platform-socket.io": "^9.4.3"/g' package.json && \
-    sed -i 's/"@nestjs\/platform-express": "[^"]*"/"@nestjs\/platform-express": "^9.4.3"/g' package.json && \
-    sed -i 's/"@nestjs\/bullmq": "[^"]*"/"@nestjs\/bullmq": "^9.4.3"/g' package.json && \
-    sed -i 's/"@nestjs\/cache-manager": "[^"]*"/"@nestjs\/cache-manager": "^1.0.0"/g' package.json && \
-    sed -i 's/"@nestjs\/graphql": "[^"]*"/"@nestjs\/graphql": "^9.4.3"/g' package.json && \
-    sed -i 's/"@liaoliaots\/nestjs-redis": "[^"]*"/"@liaoliaots\/nestjs-redis": "^9.0.4"/g' package.json
-
-# Install dependencies
-RUN npm config set fetch-retry-maxtimeout="600000" && \
-    npm config set fetch-retry-mintimeout="10000" && \
-    npm config set fetch-retries="5" && \
-    npm cache clean --force && \
-    npm install --legacy-peer-deps --no-audit --no-optional --network-timeout=600000 && \
-    npm install --save-dev @types/express @types/multer && \
-    npm install -g cross-env
+COPY --from=base /app ./
+COPY packages/server ./packages/server
 
 # Create type declarations
 RUN mkdir -p /app/packages/server/src/@types && \
@@ -163,20 +108,37 @@ RUN mkdir -p /app/packages/server/src/@types && \
     echo '  }' >> /app/packages/server/src/@types/express.d.ts && \
     echo '}' >> /app/packages/server/src/@types/express.d.ts
 
-# Copy and build backend
-COPY . /app
-RUN npm run build:server
+# Install dependencies with specific NestJS versions
+RUN npm install -g npm@8.19.2 && \
+    npm install -g cross-env && \
+    cd packages/server && \
+    npm install --save @nestjs/common@9.4.3 \
+                      @nestjs/core@9.4.3 \
+                      @nestjs/websockets@9.4.3 \
+                      @nestjs/platform-socket.io@9.4.3 \
+                      @nestjs/platform-express@9.4.3 \
+                      @nestjs/bullmq@9.4.3 \
+                      @nestjs/cache-manager@1.0.0 \
+                      @nestjs/graphql@9.4.3 \
+                      @liaoliaots/nestjs-redis@9.0.4 && \
+    npm install --save-dev @types/express @types/multer && \
+    npm install --legacy-peer-deps --no-audit
 
+# Build backend
+RUN cd packages/server && npm run build
 
 # Handle backend source maps
-RUN if [ -z "$BACKEND_SENTRY_AUTH_TOKEN" ] ; then echo "Not building sourcemaps, BACKEND_SENTRY_AUTH_TOKEN not provided" ; fi
-RUN if [ ! -z "$BACKEND_SENTRY_AUTH_TOKEN" ] ; then npm run build:server:sourcemaps ; fi
+RUN cd packages/server && \
+    if [ -z "$BACKEND_SENTRY_AUTH_TOKEN" ] ; then \
+        echo "Not building sourcemaps, BACKEND_SENTRY_AUTH_TOKEN not provided" ; \
+    else \
+        npm run build:server:sourcemaps ; \
+    fi
 
 # Generate release version
 RUN echo "$(date +%Y-%m-%d_%H-%M-%S)" > /app/SENTRY_RELEASE
 
-FROM node:16 As final
-# Environment variables
+FROM node:16 as final
 ARG BACKEND_SENTRY_DSN_URL=https://15c7f142467b67973258e7cfaf814500@o4506038702964736.ingest.sentry.io/4506040630640640
 ENV SENTRY_DSN_URL_BACKEND=${BACKEND_SENTRY_DSN_URL}
 ENV NODE_ENV=production
@@ -188,22 +150,18 @@ ENV FRONTEND_URL=${EXTERNAL_URL}
 ENV POSTHOG_HOST=https://app.posthog.com
 ENV POSTHOG_KEY=RxdBl8vjdTwic7xTzoKTdbmeSC1PCzV6sw-x-FKSB-k
 
-# Setup final image
 WORKDIR /app
 
-# Copy necessary files
-COPY ./packages/server/package.json /app
-COPY --from=frontend_build /app/packages/client/build /app/client
-COPY --from=backend_build /app/packages/server/dist /app/dist
-COPY --from=backend_build /app/node_modules /app/node_modules
-COPY --from=backend_build /app/packages /app/packages
-COPY --from=backend_build /app/SENTRY_RELEASE /app/
-COPY ./scripts /app/scripts/
+# Copy files from build stages
+COPY packages/server/package.json ./
+COPY --from=frontend_build /app/packages/client/build ./client
+COPY --from=backend_build /app/packages/server/dist ./dist
+COPY --from=backend_build /app/packages/server/node_modules ./node_modules
+COPY --from=backend_build /app/SENTRY_RELEASE ./
+COPY scripts ./scripts
 
-# Expose port
+# Expose port and setup entrypoint
 EXPOSE 80
-
-# Setup entrypoint
-COPY docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+COPY docker-entrypoint.sh ./
+RUN chmod +x docker-entrypoint.sh
+ENTRYPOINT ["./docker-entrypoint.sh"]
