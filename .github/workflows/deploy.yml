@@ -1,4 +1,4 @@
-name: Deploy
+name: Deploy to Digital Ocean
 on:
   workflow_call:
     inputs:
@@ -8,38 +8,63 @@ on:
         required: false
         type: string
       image-tag:
-        description: Tag of docker image to deploy.
+        description: Tag of docker image to deploy
         required: true
         type: string
       env:
-        description: Environment to deploy docker. Either prod or staging.
+        description: Environment to deploy docker. Either prod or staging
         required: true
         type: string
     secrets:
-      AWS_ACCESS_KEY_ID:
+      DIGITALOCEAN_ACCESS_TOKEN:
         required: true
-      AWS_SECRET_ACCESS_KEY:
+      DOCKER_USERNAME:
         required: true
+      DOCKER_PASSWORD:
+        required: true
+
 jobs:
   deploy:
-    name: Redeploy latest
+    name: Deploy to Digital Ocean
     runs-on: ubuntu-latest
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_DEFAULT_REGION: us-east-1
     steps:
-      - name: Checkout infra repo
+      - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
         with:
-          repository: laudspeaker/infrastructure
-          token: ${{ secrets.CI_PAT }}
-      - name: Setup helm
-        uses: azure/setup-helm@v3
-        with:
-          version: v3.13.2
-      - name: Build chart and deploy
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Create app specification
         run: |
-          aws eks update-kubeconfig --name cluster-${{ inputs.env }}
-          helm dependency update deploys/charts/laudspeaker/
-          helm upgrade --install -f deploys/values/${{ inputs.env }}.yaml laudspeaker-${{ inputs.env }} deploys/charts/laudspeaker/ --namespace laudspeaker --create-namespace --set image.tag=${{ inputs.image-tag }},image.repository=${{ inputs.image-repository }}
+          cat > app.yaml << EOF
+          name: laudspeaker-${{ inputs.env }}
+          services:
+            - name: laudspeaker-service
+              image:
+                registry_type: DOCKER_HUB
+                registry: registry.hub.docker.com
+                repository: ${{ inputs.image-repository }}
+                tag: ${{ inputs.image-tag }}
+                registry_credentials:
+                  username: ${{ secrets.DOCKER_USERNAME }}
+                  password: ${{ secrets.DOCKER_PASSWORD }}
+              instance_count: 1
+              instance_size_slug: basic-xxs
+              http_port: 8080
+              routes:
+                - path: /
+              envs:
+                - key: NODE_ENV
+                  value: ${{ inputs.env }}
+          EOF
+
+      - name: Deploy to Digital Ocean
+        run: |
+          if doctl apps list --format ID,Spec.Name --no-header | grep -q "laudspeaker-${{ inputs.env }}"; then
+            APP_ID=$(doctl apps list --format ID,Spec.Name --no-header | grep "laudspeaker-${{ inputs.env }}" | awk '{print $1}')
+            doctl apps update $APP_ID --spec app.yaml
+          else
+            doctl apps create --spec app.yaml
+          fi
