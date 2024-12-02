@@ -8,7 +8,8 @@ clickhouse-migrations migrate \
     --host ${CLICKHOUSE_HOST:-localhost} \
     --port ${CLICKHOUSE_PORT:-8123} \
     --user ${CLICKHOUSE_USER:-default} \
-    --password "${CLICKHOUSE_PASSWORD:-}"
+    --password "${CLICKHOUSE_PASSWORD:-}" \
+    --db ${CLICKHOUSE_DB:-default}
 
 echo "Running Typeorm migrations"
 typeorm-ts-node-commonjs migration:run -d packages/server/src/data-source.ts
