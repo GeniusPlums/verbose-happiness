@@ -17,9 +17,8 @@ ENV REACT_APP_WS_BASE_URL=${EXTERNAL_URL}
 ENV REACT_APP_POSTHOG_HOST=${REACT_APP_POSTHOG_HOST}
 ENV REACT_APP_POSTHOG_KEY=${REACT_APP_POSTHOG_KEY}
 ENV REACT_APP_ONBOARDING_API_KEY=${REACT_APP_ONBOARDING_API_KEY}
-ENV NODE_OPTIONS="--max-old-space-size=8192"
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV NODE_ENV=production
-ENV DISABLE_ESLINT_PLUGIN=true
 WORKDIR /app
 
 # Copy package files first for better caching
@@ -32,38 +31,18 @@ RUN npm config set fetch-retry-maxtimeout="600000" && \
     npm config set fetch-retries="5" && \
     npm cache clean --force && \
     npm install --legacy-peer-deps --no-audit --no-optional --network-timeout=600000 && \
-    npm install @sentry/cli --legacy-peer-deps && \
     npm install -g cross-env && \
     npm install --save-dev @babel/plugin-proposal-private-property-in-object
 
 # Copy source files
 COPY . /app
 
-# Create type declarations and modify TypeScript config
-RUN cd packages/client && \
-    mkdir -p src/@types && \
-    echo 'declare module "lodash" {' > src/@types/lodash.d.ts && \
-    echo '  export function capitalize(string: string): string;' >> src/@types/lodash.d.ts && \
-    echo '  // Add other lodash functions as needed' >> src/@types/lodash.d.ts && \
-    echo '}' >> src/@types/lodash.d.ts && \
-    echo 'declare module "react-helmet" {' > src/@types/react-helmet.d.ts && \
-    echo '  import { Component } from "react";' >> src/@types/react-helmet.d.ts && \
-    echo '  export class Helmet extends Component<any> {}' >> src/@types/react-helmet.d.ts && \
-    echo '}' >> src/@types/react-helmet.d.ts && \
-    echo '{"compilerOptions": {"skipLibCheck": true, "noImplicitAny": false}}' > tsconfig.build.json
-
-# Format code using npx prettier directly
-RUN cd packages/client && \
-    npm install --save-dev prettier && \
-    npx prettier --write "src/**/*.ts" "src/**/*.tsx"
-
 # Build frontend with optimizations
-RUN npx update-browserslist-db@latest && \
+RUN cd packages/client && \
     GENERATE_SOURCEMAP=false \
-    DISABLE_ESLINT_PLUGIN=true \
-    NODE_OPTIONS="--max-old-space-size=8192" \
-    TSC_COMPILE_ON_ERROR=true \
-    npm run build:prod -w packages/client --production
+    NODE_OPTIONS="--max-old-space-size=4096" \
+    CI=false \
+    npm run build:prod
 
 # Handle Sentry source maps
 RUN if [ -z "$FRONTEND_SENTRY_AUTH_TOKEN" ] ; then echo "Not building sourcemaps, FRONTEND_SENTRY_AUTH_TOKEN not provided" ; fi
