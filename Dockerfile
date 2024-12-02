@@ -17,21 +17,26 @@ ENV REACT_APP_WS_BASE_URL=${EXTERNAL_URL}
 ENV REACT_APP_POSTHOG_HOST=${REACT_APP_POSTHOG_HOST}
 ENV REACT_APP_POSTHOG_KEY=${REACT_APP_POSTHOG_KEY}
 ENV REACT_APP_ONBOARDING_API_KEY=${REACT_APP_ONBOARDING_API_KEY}
+ENV NODE_OPTIONS="--max-old-space-size=8192"
 WORKDIR /app
 COPY ./packages/client/package.json /app/
 COPY ./package-lock.json /app/
 
-# Fixed npm config and install commands
+# Fixed npm config and install commands with additional dependency
 RUN npm config set fetch-retry-maxtimeout="600000" && \
     npm config set fetch-retry-mintimeout="10000" && \
     npm config set fetch-retries="5" && \
     npm install --legacy-peer-deps --network-timeout=600000 && \
     npm install @sentry/cli --legacy-peer-deps && \
-    npm install -g cross-env
+    npm install -g cross-env && \
+    npm install --save-dev @babel/plugin-proposal-private-property-in-object
 
 COPY . /app
 RUN npm run format:client
-RUN npm run build:client
+
+# Split the build command to use production mode and increase memory limit
+RUN NODE_ENV=production npm run build:client
+
 # Basically an if else but more readable in two lines
 RUN if [ -z "$FRONTEND_SENTRY_AUTH_TOKEN" ] ; then echo "Not building sourcemaps, FRONTEND_SENTRY_AUTH_TOKEN not provided" ; fi
 # Need to add sentry_release here because of: https://stackoverflow.com/a/41864647
@@ -44,6 +49,7 @@ ARG BACKEND_SENTRY_PROJECT=node
 ENV SENTRY_AUTH_TOKEN=${BACKEND_SENTRY_AUTH_TOKEN}
 ENV SENTRY_ORG=${BACKEND_SENTRY_ORG}
 ENV SENTRY_PROJECT=${BACKEND_SENTRY_PROJECT}
+ENV NODE_OPTIONS="--max-old-space-size=8192"
 WORKDIR /app
 COPY --from=frontend_build /app/packages/client/package.json /app/
 COPY ./packages/server/package.json /app
