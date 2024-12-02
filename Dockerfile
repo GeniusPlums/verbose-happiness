@@ -108,21 +108,26 @@ RUN mkdir -p /app/packages/server/src/@types && \
     echo '  }' >> /app/packages/server/src/@types/express.d.ts && \
     echo '}' >> /app/packages/server/src/@types/express.d.ts
 
-# Install dependencies with specific NestJS versions
-RUN npm install -g npm@8.19.2 && \
+# Remove existing dependencies from package.json to avoid conflicts
+RUN cd packages/server && \
+    sed -i '/"dependencies"/,/}/{ /"@nestjs\/common"/d; /"@nestjs\/core"/d; /"@nestjs\/websockets"/d; /"@nestjs\/platform-socket.io"/d; /"@nestjs\/platform-express"/d; /"@nestjs\/bullmq"/d; /"@nestjs\/cache-manager"/d; /"@nestjs\/graphql"/d; /"@liaoliaots\/nestjs-redis"/d; }' package.json
+
+# Install dependencies in correct order
+RUN cd packages/server && \
+    npm install -g npm@8.19.2 && \
     npm install -g cross-env && \
-    cd packages/server && \
-    npm install --save @nestjs/common@9.4.3 \
-                      @nestjs/core@9.4.3 \
-                      @nestjs/websockets@9.4.3 \
-                      @nestjs/platform-socket.io@9.4.3 \
-                      @nestjs/platform-express@9.4.3 \
-                      @nestjs/bullmq@9.4.3 \
-                      @nestjs/cache-manager@1.0.0 \
-                      @nestjs/graphql@9.4.3 \
-                      @liaoliaots/nestjs-redis@9.0.4 && \
+    npm install --save \
+        @nestjs/common@9.4.3 \
+        @nestjs/core@9.4.3 \
+        @nestjs/websockets@9.4.3 \
+        @nestjs/platform-socket.io@9.4.3 \
+        @nestjs/platform-express@9.4.3 \
+        @nestjs/bullmq@9.4.3 \
+        @nestjs/cache-manager@1.0.0 \
+        @nestjs/graphql@9.4.3 && \
+    npm install --save @liaoliaots/nestjs-redis@9.0.5 && \
     npm install --save-dev @types/express @types/multer && \
-    npm install --legacy-peer-deps --no-audit
+    npm install --legacy-peer-deps
 
 # Build backend
 RUN cd packages/server && npm run build
