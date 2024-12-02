@@ -116,8 +116,8 @@ RUN cd packages/server && \
 RUN cd packages/server && \
     npm install -g npm@8.19.2 && \
     npm install -g cross-env && \
-    # First install everything except cache-manager
-    npm install --save \
+    # Install all dependencies with legacy-peer-deps flag
+    npm install --save --legacy-peer-deps \
         @nestjs/common@9.4.3 \
         @nestjs/core@9.4.3 \
         @nestjs/websockets@9.4.3 \
@@ -125,15 +125,11 @@ RUN cd packages/server && \
         @nestjs/platform-express@9.4.3 \
         @nestjs/bullmq@9.4.3 \
         @nestjs/graphql@9.4.3 \
-        @liaoliaots/nestjs-redis@9.0.5 && \
-    # Install cache-manager related packages separately
-    npm install --save --legacy-peer-deps \
+        @liaoliaots/nestjs-redis@9.0.5 \
         cache-manager@4.1.0 \
         @nestjs/cache-manager@1.0.0 && \
     # Install dev dependencies
-    npm install --save-dev @types/express @types/multer && \
-    # Clean install with legacy peer deps
-    npm install --legacy-peer-deps
+    npm install --save-dev @types/express @types/multer
 
 # Build backend
 RUN cd packages/server && npm run build
