@@ -35,7 +35,11 @@ RUN npm config set fetch-retry-maxtimeout="600000" && \
     npm cache clean --force && \
     npm install --legacy-peer-deps --no-audit --no-optional --network-timeout=600000 && \
     npm install --save-dev @babel/plugin-proposal-private-property-in-object && \
-    npm install --save-dev env-cmd
+    npm install --save-dev env-cmd && \
+    npm install --save-dev eslint-config-airbnb-typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser
+
+# Update browserslist database
+RUN npx update-browserslist-db@latest
 
 # Copy source files
 COPY . /app
@@ -43,6 +47,7 @@ COPY . /app
 # Install dependencies in client directory
 RUN cd packages/client && \
     npm install --save-dev env-cmd && \
+    npm install --save-dev eslint-config-airbnb-typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser && \
     npm install
 
 # Ensure .env.prod exists and contains required environment variables
