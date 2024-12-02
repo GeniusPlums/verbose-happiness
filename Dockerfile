@@ -32,10 +32,19 @@ RUN npm config set fetch-retry-maxtimeout="600000" && \
     npm cache clean --force && \
     npm install --legacy-peer-deps --no-audit --no-optional --network-timeout=600000 && \
     npm install -g cross-env && \
-    npm install --save-dev @babel/plugin-proposal-private-property-in-object
+    npm install --save-dev @babel/plugin-proposal-private-property-in-object && \
+    npm install --save-dev env-cmd
 
 # Copy source files
 COPY . /app
+
+# Ensure .env.prod exists and contains required environment variables
+RUN cd packages/client && \
+    echo "REACT_APP_API_URL=${EXTERNAL_URL}" > .env.prod && \
+    echo "REACT_APP_WS_BASE_URL=${EXTERNAL_URL}" >> .env.prod && \
+    echo "REACT_APP_POSTHOG_HOST=${REACT_APP_POSTHOG_HOST}" >> .env.prod && \
+    echo "REACT_APP_POSTHOG_KEY=${REACT_APP_POSTHOG_KEY}" >> .env.prod && \
+    echo "REACT_APP_ONBOARDING_API_KEY=${REACT_APP_ONBOARDING_API_KEY}" >> .env.prod
 
 # Build frontend with optimizations
 RUN cd packages/client && \
