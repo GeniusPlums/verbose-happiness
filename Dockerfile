@@ -84,13 +84,18 @@ WORKDIR /app
 COPY --from=frontend_build /app/packages/client/package.json /app/
 COPY ./packages/server/package.json /app/
 
+# First modify package.json to update dependencies
+RUN sed -i 's/"@liaoliaots\/nestjs-redis": "^9.0.5"/"@liaoliaots\/nestjs-redis": "^10.0.0"/g' package.json && \
+    sed -i 's/"@nestjs\/common": "^9.0.0"/"@nestjs\/common": "^10.0.0"/g' package.json
+
 # Install dependencies
 RUN npm config set fetch-retry-maxtimeout="600000" && \
     npm config set fetch-retry-mintimeout="10000" && \
     npm config set fetch-retries="5" && \
     npm cache clean --force && \
     npm install --force --no-audit --no-optional --network-timeout=600000 && \
-    npm install --save @nestjs/common@9.4.3 && \
+    npm install --save @nestjs/common@10.4.12 && \
+    npm install --save @liaoliaots/nestjs-redis@10.0.0 && \
     npm install --save-dev @types/express @types/multer && \
     npm install -g cross-env
 
