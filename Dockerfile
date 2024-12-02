@@ -19,6 +19,7 @@ ENV REACT_APP_POSTHOG_KEY=${REACT_APP_POSTHOG_KEY}
 ENV REACT_APP_ONBOARDING_API_KEY=${REACT_APP_ONBOARDING_API_KEY}
 ENV NODE_OPTIONS="--max-old-space-size=8192"
 ENV NODE_ENV=production
+ENV DISABLE_ESLINT_PLUGIN=true
 WORKDIR /app
 
 # Copy package files first for better caching
@@ -33,8 +34,7 @@ RUN npm config set fetch-retry-maxtimeout="600000" && \
     npm install --legacy-peer-deps --no-audit --no-optional --network-timeout=600000 && \
     npm install @sentry/cli --legacy-peer-deps && \
     npm install -g cross-env && \
-    npm install --save-dev @babel/plugin-proposal-private-property-in-object && \
-    npm install --save-dev eslint-config-airbnb-typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser
+    npm install --save-dev @babel/plugin-proposal-private-property-in-object
 
 # Copy source files
 COPY . /app
@@ -44,13 +44,10 @@ RUN cd packages/client && \
     npm install --save-dev prettier && \
     npx prettier --write "src/**/*.ts" "src/**/*.tsx"
 
-# Install additional dependencies for the client package
-RUN cd packages/client && \
-    npm install --save-dev eslint-config-airbnb-typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser
-
 # Build frontend with optimizations
 RUN npx update-browserslist-db@latest && \
     GENERATE_SOURCEMAP=false \
+    DISABLE_ESLINT_PLUGIN=true \
     NODE_OPTIONS="--max-old-space-size=8192" \
     npm run build:prod -w packages/client --production
 
