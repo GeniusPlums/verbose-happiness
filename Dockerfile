@@ -167,6 +167,9 @@ COPY --from=backend_build /app/packages/server/node_modules ./node_modules
 COPY --from=backend_build /app/SENTRY_RELEASE ./
 COPY scripts ./scripts
 
+# Install clickhouse-migrations globally
+RUN npm install -g clickhouse-migrations
+
 # Expose port and setup entrypoint
 EXPOSE 80
 COPY docker-entrypoint.sh ./
