@@ -112,10 +112,11 @@ RUN mkdir -p /app/packages/server/src/@types && \
 RUN cd packages/server && \
     sed -i '/"dependencies"/,/}/{ /"@nestjs\/common"/d; /"@nestjs\/core"/d; /"@nestjs\/websockets"/d; /"@nestjs\/platform-socket.io"/d; /"@nestjs\/platform-express"/d; /"@nestjs\/bullmq"/d; /"@nestjs\/cache-manager"/d; /"@nestjs\/graphql"/d; /"@liaoliaots\/nestjs-redis"/d; }' package.json
 
-# Install dependencies in correct order with force resolution for cache-manager
+# Install dependencies in correct order with workspace handling
 RUN cd packages/server && \
     npm install -g npm@8.19.2 && \
     npm install -g cross-env && \
+    # First install everything except cache-manager
     npm install --save \
         @nestjs/common@9.4.3 \
         @nestjs/core@9.4.3 \
@@ -124,11 +125,15 @@ RUN cd packages/server && \
         @nestjs/platform-express@9.4.3 \
         @nestjs/bullmq@9.4.3 \
         @nestjs/graphql@9.4.3 \
+        @liaoliaots/nestjs-redis@9.0.5 && \
+    # Install cache-manager related packages separately
+    npm install --save --legacy-peer-deps \
         cache-manager@4.1.0 \
         @nestjs/cache-manager@1.0.0 && \
-    npm install --save @liaoliaots/nestjs-redis@9.0.5 && \
+    # Install dev dependencies
     npm install --save-dev @types/express @types/multer && \
-    npm install --force
+    # Clean install with legacy peer deps
+    npm install --legacy-peer-deps
 
 # Build backend
 RUN cd packages/server && npm run build
