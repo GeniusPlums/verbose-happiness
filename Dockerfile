@@ -17,7 +17,7 @@ ENV REACT_APP_WS_BASE_URL=${EXTERNAL_URL}
 ENV REACT_APP_POSTHOG_HOST=${REACT_APP_POSTHOG_HOST}
 ENV REACT_APP_POSTHOG_KEY=${REACT_APP_POSTHOG_KEY}
 ENV REACT_APP_ONBOARDING_API_KEY=${REACT_APP_ONBOARDING_API_KEY}
-ENV NODE_OPTIONS="--max-old-space-size=8192 --optimize-for-size"
+ENV NODE_OPTIONS="--max-old-space-size=8192"
 ENV NODE_ENV=production
 WORKDIR /app
 
@@ -42,7 +42,7 @@ RUN npm run format:client
 # Build frontend with optimizations
 RUN npx update-browserslist-db@latest && \
     GENERATE_SOURCEMAP=false \
-    NODE_OPTIONS="--max-old-space-size=8192 --optimize-for-size" \
+    NODE_OPTIONS="--max-old-space-size=8192" \
     npm run build:prod -w packages/client --production
 
 # Handle Sentry source maps
@@ -56,7 +56,7 @@ ARG BACKEND_SENTRY_PROJECT=node
 ENV SENTRY_AUTH_TOKEN=${BACKEND_SENTRY_AUTH_TOKEN}
 ENV SENTRY_ORG=${BACKEND_SENTRY_ORG}
 ENV SENTRY_PROJECT=${BACKEND_SENTRY_PROJECT}
-ENV NODE_OPTIONS="--max-old-space-size=8192 --optimize-for-size"
+ENV NODE_OPTIONS="--max-old-space-size=8192"
 ENV NODE_ENV=production
 WORKDIR /app
 
