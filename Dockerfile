@@ -1,5 +1,3 @@
-# To build: docker build -f Dockerfile -t laudspeaker/laudspeaker:latest .
-# To run: docker run -it -p 80:80 --env-file packages/server/.env --rm laudspeaker/laudspeaker:latest
 FROM node:16 as frontend_build
 ARG EXTERNAL_URL
 ARG FRONTEND_SENTRY_AUTH_TOKEN
@@ -9,6 +7,8 @@ ARG FRONTEND_SENTRY_DSN_URL=https://2444369e8e13b39377ba90663ae552d1@o4506038702
 ARG REACT_APP_POSTHOG_HOST
 ARG REACT_APP_POSTHOG_KEY
 ARG REACT_APP_ONBOARDING_API_KEY
+
+# Set environment variables
 ENV SENTRY_AUTH_TOKEN=${FRONTEND_SENTRY_AUTH_TOKEN}
 ENV SENTRY_ORG=${FRONTEND_SENTRY_ORG}
 ENV SENTRY_PROJECT=${FRONTEND_SENTRY_PROJECT}
@@ -19,38 +19,33 @@ ENV REACT_APP_POSTHOG_KEY=${REACT_APP_POSTHOG_KEY}
 ENV REACT_APP_ONBOARDING_API_KEY=${REACT_APP_ONBOARDING_API_KEY}
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV NODE_ENV=production
+
 WORKDIR /app
 
-# Copy package files first for better caching
-COPY ./packages/client/package.json /app/
-COPY ./package-lock.json /app/
+# Copy package files first
+COPY package.json package-lock.json ./
+COPY packages/client/package.json ./packages/client/
 
-# Install global dependencies
-RUN npm install -g cross-env env-cmd
-
-# Fixed npm config and install commands with optimization
-RUN npm config set fetch-retry-maxtimeout="600000" && \
-    npm config set fetch-retry-mintimeout="10000" && \
-    npm config set fetch-retries="5" && \
+# Install dependencies with specific versioning
+RUN npm install -g npm@8.19.2 && \
+    npm install -g cross-env env-cmd && \
     npm cache clean --force && \
-    npm install --legacy-peer-deps --no-audit --no-optional --network-timeout=600000 && \
-    npm install --save-dev @babel/plugin-proposal-private-property-in-object && \
-    npm install --save-dev env-cmd && \
-    npm install --save-dev eslint-config-airbnb-typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser
+    npm install --legacy-peer-deps --no-audit
+
+# Install specific React dependencies
+RUN cd packages/client && \
+    npm install --save-dev @babel/plugin-proposal-private-property-in-object@^7.21.11 && \
+    npm install --save-dev @babel/core@^7.22.20 && \
+    npm install --save-dev @babel/preset-react@^7.22.15 && \
+    npm install --save-dev babel-loader@^9.1.3
+
+# Copy the rest of the application
+COPY . .
 
 # Update browserslist database
 RUN npx update-browserslist-db@latest
 
-# Copy source files
-COPY . /app
-
-# Install dependencies in client directory
-RUN cd packages/client && \
-    npm install --save-dev env-cmd && \
-    npm install --save-dev eslint-config-airbnb-typescript @typescript-eslint/eslint-plugin @typescript-eslint/parser && \
-    npm install
-
-# Ensure .env.prod exists and contains required environment variables
+# Create production environment file
 RUN cd packages/client && \
     echo "REACT_APP_API_URL=${EXTERNAL_URL}" > .env.prod && \
     echo "REACT_APP_WS_BASE_URL=${EXTERNAL_URL}" >> .env.prod && \
@@ -58,12 +53,12 @@ RUN cd packages/client && \
     echo "REACT_APP_POSTHOG_KEY=${REACT_APP_POSTHOG_KEY}" >> .env.prod && \
     echo "REACT_APP_ONBOARDING_API_KEY=${REACT_APP_ONBOARDING_API_KEY}" >> .env.prod
 
-# Build frontend with optimizations
+# Build with specific flags
 RUN cd packages/client && \
+    INLINE_RUNTIME_CHUNK=false \
     GENERATE_SOURCEMAP=false \
     NODE_OPTIONS="--max-old-space-size=4096" \
     CI=false \
-    PATH="$PATH:/app/node_modules/.bin" \
     npm run build:prod
 
 # Handle Sentry source maps
