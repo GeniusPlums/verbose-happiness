@@ -34,10 +34,15 @@ RUN npm config set fetch-retry-maxtimeout="600000" && \
     npm install --legacy-peer-deps --no-audit --no-optional --network-timeout=600000 && \
     npm install @sentry/cli --legacy-peer-deps && \
     npm install -g cross-env && \
-    npm install --save-dev @babel/plugin-proposal-private-property-in-object
+    npm install --save-dev @babel/plugin-proposal-private-property-in-object && \
+    npm install --save-dev @types/react-helmet
 
 # Copy source files
 COPY . /app
+
+# Install type definitions in client package
+RUN cd packages/client && \
+    npm install --save-dev @types/react-helmet
 
 # Format code using npx prettier directly
 RUN cd packages/client && \
