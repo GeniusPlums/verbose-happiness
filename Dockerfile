@@ -62,7 +62,8 @@ RUN npm run build:server
 RUN if [ -z "$BACKEND_SENTRY_AUTH_TOKEN" ] ; then echo "Not building sourcemaps, BACKEND_SENTRY_AUTH_TOKEN not provided" ; fi
 RUN if [ ! -z "$BACKEND_SENTRY_AUTH_TOKEN" ] ; then npm run build:server:sourcemaps ; fi
 
-RUN ./node_modules/.bin/sentry-cli releases propose-version > /app/SENTRY_RELEASE
+# Replace problematic sentry-cli command with a fallback version string
+RUN echo "$(date +%Y-%m-%d_%H-%M-%S)" > /app/SENTRY_RELEASE
 
 FROM node:16 As final
 # Env vars
