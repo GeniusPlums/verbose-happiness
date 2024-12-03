@@ -5,7 +5,7 @@ export SENTRY_RELEASE=$(cat SENTRY_RELEASE)
 
 echo "Running clickhouse-migrations"
 clickhouse-migrations migrate \
-    --host "${CLICKHOUSE_HOST:-localhost}:${CLICKHOUSE_PORT:-8123}" \
+    --host "http://${CLICKHOUSE_HOST:-localhost}:${CLICKHOUSE_PORT:-8123}" \
     --user ${CLICKHOUSE_USER:-default} \
     --password "${CLICKHOUSE_PASSWORD:-}" \
     --db ${CLICKHOUSE_DB:-default} \
