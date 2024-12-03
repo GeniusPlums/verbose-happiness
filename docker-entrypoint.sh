@@ -20,14 +20,18 @@ echo "Current directory: $(pwd)"
 echo "Checking packages/server/src directory:"
 ls -la packages/server/src || echo "Directory not found"
 
+# Debug: Show directory structure
+echo "Listing contents of /app/packages/server/src:"
+ls -la /app/packages/server/src || echo "Directory not found"
+
 # Try to run migrations
-if [ -f "packages/server/src/data-source.ts" ]; then
+if [ -f "/app/packages/server/src/data-source.ts" ]; then
     echo "Found data-source.ts, running migrations..."
-    typeorm migration:run -d packages/server/src/data-source.ts
+    typeorm migration:run -d /app/packages/server/src/data-source.ts
 else
     echo "Error: data-source.ts not found at expected location"
     echo "Searching for data-source.ts in all locations:"
-    find . -name "data-source.ts" -type f
+    find /app -name "data-source.ts" -type f
     exit 1
 fi
 
