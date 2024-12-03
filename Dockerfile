@@ -166,6 +166,8 @@ COPY --from=backend_build /app/packages/server/dist ./dist
 COPY --from=backend_build /app/packages/server/node_modules ./node_modules
 COPY --from=backend_build /app/SENTRY_RELEASE ./
 COPY scripts ./scripts
+# Copy migrations directory
+COPY packages/server/migrations ./migrations
 
 # Install clickhouse-migrations globally
 RUN npm install -g clickhouse-migrations
