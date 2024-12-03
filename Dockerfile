@@ -83,6 +83,9 @@ WORKDIR /app
 COPY --from=base /app ./
 COPY packages/server ./packages/server
 
+# Add this line to ensure data-source.ts is included
+COPY packages/server/src/data-source.ts /app/packages/server/src/
+
 # Create type declarations
 RUN mkdir -p /app/packages/server/src/@types && \
     echo 'import { User } from "../entities/user.entity";' > /app/packages/server/src/@types/express.d.ts && \
