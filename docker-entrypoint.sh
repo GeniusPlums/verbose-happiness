@@ -5,7 +5,7 @@ export SENTRY_RELEASE=$(cat SENTRY_RELEASE)
 
 echo "Running clickhouse-migrations"
 clickhouse-migrations migrate \
-    --host "https://cka13ao0ad.ap-south-1.aws.clickhouse.cloud:8443" \
+    --host "https://ckai3ao0ad.ap-south-1.aws.clickhouse.cloud:8443" \
     --user default \
     --password "~MG~gu62c6lFW" \
     --db ${CLICKHOUSE_DB:-default} \
