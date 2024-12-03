@@ -12,6 +12,7 @@ clickhouse-migrations migrate \
     --migrations-home ./migrations
 
 echo "Running Typeorm migrations"
+npm install -g ts-node typescript
 npx typeorm-ts-node-commonjs migration:run -d packages/server/src/data-source.ts
 
 # Web server runs first. All other process types are dependant on the web server container
