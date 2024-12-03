@@ -14,21 +14,20 @@ clickhouse-migrations migrate \
 echo "Running Typeorm migrations"
 npm install -g ts-node typescript @types/node typeorm
 npm install --legacy-peer-deps
-typeorm migration:run -d packages/server/src/data-source.ts
 
-# Print current directory and search for data-source.ts
+# Debug: Show directory structure
 echo "Current directory: $(pwd)"
-echo "Searching for data-source.ts files:"
-find . -name "data-source.ts" -type f
+echo "Checking packages/server/src directory:"
+ls -la packages/server/src || echo "Directory not found"
 
-# Try to run migrations with the found path
-DATA_SOURCE_PATH=$(find ./packages/server -name "data-source.ts" -type f | head -n 1)
-if [ -n "$DATA_SOURCE_PATH" ]; then
-    echo "Found data source at: $DATA_SOURCE_PATH"
-    typeorm migration:run -d "$DATA_SOURCE_PATH"
+# Try to run migrations
+if [ -f "packages/server/src/data-source.ts" ]; then
+    echo "Found data-source.ts, running migrations..."
+    typeorm migration:run -d packages/server/src/data-source.ts
 else
-    echo "Error: Could not find data-source.ts"
-    ls -R
+    echo "Error: data-source.ts not found at expected location"
+    echo "Searching for data-source.ts in all locations:"
+    find . -name "data-source.ts" -type f
     exit 1
 fi
 
