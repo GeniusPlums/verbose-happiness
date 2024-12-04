@@ -2,14 +2,14 @@
 # To run: docker run -it -p 80:80 --env-file packages/server/.env --rm laudspeaker/laudspeaker:latest
 
 # Base stage for shared dependencies
-FROM node:18-slim as base
+FROM node:18-slim AS base
 WORKDIR /app
 COPY package*.json ./
 COPY packages/client/package*.json ./packages/client/
 COPY packages/server/package*.json ./packages/server/
 
 # Frontend build stage
-FROM node:18-slim as frontend_build
+FROM node:18-slim AS frontend_build
 ARG EXTERNAL_URL
 ARG FRONTEND_SENTRY_AUTH_TOKEN
 ARG FRONTEND_SENTRY_ORG=laudspeaker-rb
@@ -43,11 +43,11 @@ RUN cd packages/client && \
     npm install --save react-helmet && \
     echo "declare module 'react-helmet';" > react-helmet.d.ts && \
     # Create production environment file
-    echo "REACT_APP_API_URL=${EXTERNAL_URL}" > .env.prod && \
-    echo "REACT_APP_WS_BASE_URL=${EXTERNAL_URL}" >> .env.prod && \
-    echo "REACT_APP_POSTHOG_HOST=${REACT_APP_POSTHOG_HOST}" >> .env.prod && \
-    echo "REACT_APP_POSTHOG_KEY=${REACT_APP_POSTHOG_KEY}" >> .env.prod && \
-    echo "REACT_APP_ONBOARDING_API_KEY=${REACT_APP_ONBOARDING_API_KEY}" >> .env.prod && \
+    echo "REACT_APP_API_URL=${EXTERNAL_URL:-http://localhost:3000}" > .env.prod && \
+    echo "REACT_APP_WS_BASE_URL=${EXTERNAL_URL:-http://localhost:3000}" >> .env.prod && \
+    echo "REACT_APP_POSTHOG_HOST=${REACT_APP_POSTHOG_HOST:-}" >> .env.prod && \
+    echo "REACT_APP_POSTHOG_KEY=${REACT_APP_POSTHOG_KEY:-}" >> .env.prod && \
+    echo "REACT_APP_ONBOARDING_API_KEY=${REACT_APP_ONBOARDING_API_KEY:-}" >> .env.prod && \
     # Build frontend
     DISABLE_ESLINT_PLUGIN=true \
     EXTEND_ESLINT=false \
@@ -60,11 +60,15 @@ RUN cd packages/client && \
 # Handle frontend source maps conditionally
 RUN cd packages/client && \
     if [ -n "$FRONTEND_SENTRY_AUTH_TOKEN" ] ; then \
-        REACT_APP_SENTRY_RELEASE=$(./node_modules/.bin/sentry-cli releases propose-version) npm run build:client:sourcemaps ; \
+        SENTRY_RELEASE=$(./node_modules/.bin/sentry-cli releases propose-version) && \
+        echo $SENTRY_RELEASE > /app/SENTRY_RELEASE && \
+        REACT_APP_SENTRY_RELEASE=$SENTRY_RELEASE npm run build:client:sourcemaps ; \
+    else \
+        echo "development" > /app/SENTRY_RELEASE ; \
     fi
 
 # Backend build stage
-FROM node:18-slim as backend_build
+FROM node:18-slim AS backend_build
 WORKDIR /app
 
 COPY --from=base /app ./
@@ -75,9 +79,13 @@ RUN cd packages/server && \
     npm ci && \
     npm run build
 
+# Copy Sentry release file from frontend build
+COPY --from=frontend_build /app/SENTRY_RELEASE ./SENTRY_RELEASE
+
 # Final stage
-FROM node:18-slim as final
+FROM node:18-slim AS final
 ARG BACKEND_SENTRY_DSN_URL=https://15c7f142467b67973258e7cfaf814500@o4506038702964736.ingest.sentry.io/4506040630640640
+ARG EXTERNAL_URL
 
 # Set runtime environment variables
 ENV SENTRY_DSN_URL_BACKEND=${BACKEND_SENTRY_DSN_URL} \
@@ -86,7 +94,7 @@ ENV SENTRY_DSN_URL_BACKEND=${BACKEND_SENTRY_DSN_URL} \
     SERVE_CLIENT_FROM_NEST=true \
     CLIENT_PATH=/app/client \
     PATH=/app/node_modules/.bin:$PATH \
-    FRONTEND_URL=${EXTERNAL_URL} \
+    FRONTEND_URL=${EXTERNAL_URL:-http://localhost:3000} \
     POSTHOG_HOST=https://app.posthog.com \
     POSTHOG_KEY=RxdBl8vjdTwic7xTzoKTdbmeSC1PCzV6sw-x-FKSB-k
 
@@ -99,7 +107,7 @@ RUN mkdir -p /app/packages/server/src /app/migrations
 COPY --from=frontend_build /app/packages/client/build ./client
 COPY --from=backend_build /app/packages/server/dist ./dist
 COPY --from=backend_build /app/packages/server/node_modules ./node_modules
-COPY --from=backend_build /app/SENTRY_RELEASE ./
+COPY --from=frontend_build /app/SENTRY_RELEASE ./SENTRY_RELEASE
 COPY scripts ./scripts
 COPY packages/server/migrations/* ./migrations/
 COPY docker-entrypoint.sh ./
