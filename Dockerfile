@@ -83,8 +83,8 @@ WORKDIR /app
 COPY --from=base /app ./
 COPY packages/server ./packages/server
 
-# Add this line to ensure data-source.ts is included
-COPY packages/server/src/data-source.ts /app/packages/server/src/
+# Ensure data-source.ts is included
+COPY packages/server/src/data-source.ts /app/packages/server/src/data-source.ts
 
 # Create type declarations
 RUN mkdir -p /app/packages/server/src/@types && \
@@ -109,7 +109,7 @@ RUN mkdir -p /app/packages/server/src/@types && \
     echo '      }' >> /app/packages/server/src/@types/express.d.ts && \
     echo '    }' >> /app/packages/server/src/@types/express.d.ts && \
     echo '  }' >> /app/packages/server/src/@types/express.d.ts && \
-    echo '}' >> /app/packages/server/src/@types/express.d.ts
+    echo '}'
 
 # Remove existing dependencies from package.json to avoid conflicts
 RUN cd packages/server && \
