@@ -122,17 +122,28 @@ WORKDIR /app
 # Switch to root to create user and set up directories
 USER root
 
-# Create user and set up directories
+# Create user and set up directories with proper permissions
 RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
     mkdir -p /app/packages/server/src /app/migrations /app/client /home/appuser/.npm-global && \
-    chown -R 1001:1001 /app /home/appuser
+    mkdir -p /app/node_modules && \
+    chown -R 1001:1001 /app /home/appuser && \
+    chmod -R 777 /app/node_modules  # Ensure full permissions for node_modules
 
-# Switch to non-root user before any npm operations
+# Copy files with correct ownership
+COPY --chown=1001:1001 --from=backend /app/packages/server/dist ./dist
+COPY --chown=1001:1001 --from=backend /app/packages/server/node_modules ./node_modules
+COPY --chown=1001:1001 --from=frontend /app/packages/client/build ./client
+COPY --chown=1001:1001 package.json ./
+
+# Set permissions again after copying
+RUN chown -R 1001:1001 /app && \
+    chmod -R 777 /app/node_modules
+
+# Switch to non-root user
 USER appuser
 
 # Configure npm for the non-root user
 RUN npm config set prefix '/home/appuser/.npm-global' && \
-    # Install global packages as non-root user
     npm install -g clickhouse-migrations typeorm typescript ts-node @types/node
 
 # Copy files with correct ownership
