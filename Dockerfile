@@ -174,8 +174,8 @@ COPY docker-entrypoint.sh ./
 
 RUN chmod +x docker-entrypoint.sh && \
     chmod -R 755 /app/migrations && \
+    rm -f /usr/local/bin/clickhouse-migrations && \
     ln -s /home/appuser/.npm-global/bin/clickhouse-migrations /usr/local/bin/clickhouse-migrations && \
-    # Clear npm cache and set permissions again
     npm cache clean --force && \
     rm -rf /home/appuser/.npm/* && \
     mkdir -p /home/appuser/.npm && \
