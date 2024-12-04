@@ -75,7 +75,6 @@ FROM node:18-slim AS backend
 WORKDIR /app
 
 # Create TypeScript declarations first
-# Create TypeScript declarations first
 RUN mkdir -p /app/packages/server/src/@types && \
     echo 'import { User } from "../entities/user.entity";\n\
 \n\
@@ -92,6 +91,9 @@ declare global {\n\
 COPY --from=base /app ./
 COPY package*.json ./
 COPY packages/server/package*.json ./packages/server/
+
+# Create package.json with type module
+RUN node -e "const pkg = require('./package.json'); pkg.type = 'module'; require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2));"
 
 # Copy server source
 COPY packages/server ./packages/server
@@ -119,43 +121,33 @@ RUN ls -la /app/package.json || echo "No package.json in backend"
 FROM node:18-slim AS final
 WORKDIR /app
 
-# Set up non-root user and directories
+# Root operations first
 RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
-    mkdir -p \
-        /app/packages/server/src \
-        /app/migrations \
-        /app/client \
-        /app/node_modules \
-        /home/appuser/.npm-global && \
+    mkdir -p /app/packages/server/src \
+            /app/migrations \
+            /app/client \
+            /app/node_modules \
+            /home/appuser/.npm-global && \
     chown -R appuser:appuser /app /home/appuser && \
     chmod -R 755 /app
 
-# Copy files with correct permissions
-COPY --chown=appuser:appuser docker-entrypoint.sh /app/
-RUN chmod 755 /app/docker-entrypoint.sh
+# Copy package.json files first
+COPY --chown=appuser:appuser --from=base /app/package*.json ./
+COPY --chown=appuser:appuser --from=base /app/packages/server/package*.json ./packages/server/
 
-# Copy build artifacts with correct permissions
-COPY --chown=appuser:appuser --from=frontend /app/packages/client/build /app/client/
-COPY --chown=appuser:appuser --from=backend /app/packages/server/dist /app/dist/
-COPY --chown=appuser:appuser --from=backend /app/packages/server/node_modules /app/node_modules/
-COPY --chown=appuser:appuser --from=backend /app/packages/server/src/data-source.ts /app/packages/server/src/
-COPY --chown=appuser:appuser --from=frontend /app/SENTRY_RELEASE ./
-COPY --chown=appuser:appuser scripts ./scripts/
-COPY --chown=appuser:appuser packages/server/migrations/* /app/migrations/
+# Copy artifacts and set permissions
+COPY --chown=appuser:appuser docker-entrypoint.sh ./
+RUN chmod +x docker-entrypoint.sh
 
-# Switch to non-root user
+# Copy build artifacts with correct ownership
+COPY --chown=appuser:appuser --from=frontend /app/packages/client/build ./client/
+COPY --chown=appuser:appuser --from=backend /app/packages/server/dist ./dist/
+COPY --chown=appuser:appuser --from=backend /app/packages/server/node_modules ./node_modules/
+COPY --chown=appuser:appuser --from=backend /app/packages/server/src/data-source.ts ./packages/server/src/
+
 USER appuser
 
-# Set up environment
-ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
-    NPM_CONFIG_PREFIX=/home/appuser/.npm-global
-
-# Install global packages
 RUN npm config set prefix '/home/appuser/.npm-global' && \
     npm install -g clickhouse-migrations typeorm typescript ts-node @types/node
 
-EXPOSE 80
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
-
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+ENTRYPOINT ["./docker-entrypoint.sh"]
