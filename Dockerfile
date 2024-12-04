@@ -111,18 +111,21 @@ ENV SENTRY_DSN_URL_BACKEND=${BACKEND_SENTRY_DSN_URL} \
 WORKDIR /app
 
 # Create necessary directories and set up permissions
-RUN mkdir -p /app/packages/server/src /app/migrations /app/client /home/appuser/.npm-global && \
-    # Add non-root user
-    adduser --disabled-password --gecos "" appuser && \
-    chown -R appuser:appuser /home/appuser && \
-    # Set up npm global directory for non-root user
-    mkdir -p /home/appuser/.npm-global/lib && \
-    chown -R appuser:appuser /home/appuser/.npm-global && \
-    # Install global dependencies
-    npm config set prefix '/home/appuser/.npm-global' && \
-    npm install -g clickhouse-migrations typeorm typescript ts-node @types/node && \
+RUN mkdir -p /app/packages/server/src /app/migrations /app/client && \
+    # Add non-root user with specific UID/GID
+    adduser --uid 1001 --disabled-password --gecos "" appuser && \
+    # Create and set permissions for npm directories
+    mkdir -p /home/appuser/.npm-global && \
+    mkdir -p /home/appuser/.npm && \
+    chown -R 1001:1001 /home/appuser/.npm-global && \
+    chown -R 1001:1001 /home/appuser/.npm && \
+    chmod -R 775 /home/appuser/.npm-global && \
+    chmod -R 775 /home/appuser/.npm && \
+    # Install global dependencies as appuser
+    su - appuser -c "npm config set prefix '/home/appuser/.npm-global'" && \
+    su - appuser -c "npm install -g clickhouse-migrations typeorm typescript ts-node @types/node" && \
     # Set proper permissions for app directory
-    chown -R appuser:appuser /app
+    chown -R 1001:1001 /app
 
 # Copy build artifacts and configurations
 COPY --from=frontend /app/packages/client/build ./client
@@ -136,14 +139,24 @@ COPY docker-entrypoint.sh ./
 
 # Set permissions for entrypoint and other files
 RUN chmod +x docker-entrypoint.sh && \
-    chown -R appuser:appuser /app && \
+    chown -R 1001:1001 /app && \
     # Explicitly set permissions for migrations directory
     chmod -R 755 /app/migrations && \
     # Create symlink for clickhouse-migrations
-    ln -s /home/appuser/.npm-global/bin/clickhouse-migrations /usr/local/bin/clickhouse-migrations
+    ln -s /home/appuser/.npm-global/bin/clickhouse-migrations /usr/local/bin/clickhouse-migrations && \
+    # Clear npm cache and set permissions again
+    npm cache clean --force && \
+    rm -rf /home/appuser/.npm/* && \
+    mkdir -p /home/appuser/.npm && \
+    chown -R 1001:1001 /home/appuser/.npm && \
+    chmod -R 775 /home/appuser/.npm
 
 # Switch to non-root user
 USER appuser
+
+# Pre-create the npm cache directory with correct permissions
+RUN mkdir -p /home/appuser/.npm && \
+    npm config set cache /home/appuser/.npm --global
 
 # Verify PATH and installations
 RUN echo "PATH=$PATH" && \
