@@ -120,18 +120,19 @@ FROM node:18-slim AS final
 WORKDIR /app
 
 # Install global dependencies
-RUN mkdir -p /home/appuser/.npm-global && \
+RUN mkdir -p /app/node_modules && \
+    chown -R 1001:1001 /app && \
+    chmod -R 775 /app/node_modules && \
+    # Set up npm global directory
+    mkdir -p /home/appuser/.npm-global && \
     chown -R 1001:1001 /home/appuser/.npm-global && \
     npm config set prefix '/home/appuser/.npm-global' && \
+    # Install global packages
     npm install -g clickhouse-migrations typeorm typescript ts-node @types/node && \
-    # Verify installation
-    ls -la /home/appuser/.npm-global/bin && \
-    # Add the bin directory to PATH
-    export PATH="/home/appuser/.npm-global/bin:$PATH" && \
-    # Verify installations
-    which clickhouse-migrations && \
-    which typeorm && \
-    which ts-node
+    # Set proper permissions for npm cache
+    mkdir -p /home/appuser/.npm && \
+    chown -R 1001:1001 /home/appuser/.npm && \
+    chmod -R 775 /home/appuser/.npm
 
 ARG BACKEND_SENTRY_DSN_URL=https://15c7f142467b67973258e7cfaf814500@o4506038702964736.ingest.sentry.io/4506040630640640
 ARG EXTERNAL_URL
