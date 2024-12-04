@@ -119,26 +119,30 @@ RUN ls -la /app/package.json || echo "No package.json in backend"
 FROM node:18-slim AS final
 WORKDIR /app
 
-# Install global dependencies
-RUN mkdir -p /app/node_modules && \
-    chown -R 1001:1001 /app && \
-    chmod -R 775 /app/node_modules && \
-    # Set up npm global directory
-    mkdir -p /home/appuser/.npm-global && \
-    chown -R 1001:1001 /home/appuser/.npm-global && \
-    npm config set prefix '/home/appuser/.npm-global' && \
-    # Install global packages
-    npm install -g clickhouse-migrations typeorm typescript ts-node @types/node && \
-    # Set proper permissions for npm cache
-    mkdir -p /home/appuser/.npm && \
-    chown -R 1001:1001 /home/appuser/.npm && \
-    chmod -R 775 /home/appuser/.npm
+# Create user first
+RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
+    # Create all necessary directories
+    mkdir -p /app/node_modules /home/appuser/.npm-global /home/appuser/.npm && \
+    # Set ownership and permissions
+    chown -R 1001:1001 /app /home/appuser && \
+    chmod -R 775 /app/node_modules
+
+# Switch to non-root user before any npm operations
+USER appuser
+
+# Configure npm for the non-root user
+RUN npm config set prefix '/home/appuser/.npm-global' && \
+    # Install global packages as non-root user
+    npm install -g clickhouse-migrations typeorm typescript ts-node @types/node
+
+# Copy files with correct ownership
+COPY --chown=1001:1001 --from=backend /app/packages/server/dist ./dist
+COPY --chown=1001:1001 --from=backend /app/packages/server/node_modules ./node_modules
+COPY --chown=1001:1001 --from=frontend /app/packages/client/build ./client
+COPY --chown=1001:1001 package.json ./
 
 ARG BACKEND_SENTRY_DSN_URL=https://15c7f142467b67973258e7cfaf814500@o4506038702964736.ingest.sentry.io/4506040630640640
 ARG EXTERNAL_URL
-
-# Add this line to copy package.json directly from source
-COPY package.json ./
 
 # Set runtime environment variables
 ENV SENTRY_DSN_URL_BACKEND=${BACKEND_SENTRY_DSN_URL} \
