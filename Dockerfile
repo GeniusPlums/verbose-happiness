@@ -119,38 +119,31 @@ RUN ls -la /app/package.json || echo "No package.json in backend"
 FROM node:18-slim AS final
 WORKDIR /app
 
-# Switch to root to create user and set up directories
-USER root
+# Create user first
+RUN adduser --uid 1001 --disabled-password --gecos "" appuser
 
-# Create user and set up directories with proper permissions
-RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
-    mkdir -p /app/packages/server/src /app/migrations /app/client /home/appuser/.npm-global && \
-    mkdir -p /app/node_modules && \
-    chown -R 1001:1001 /app /home/appuser && \
-    chmod -R 777 /app/node_modules  # Ensure full permissions for node_modules
+# Create directories with correct permissions
+RUN mkdir -p /app/packages/server/src \
+            /app/migrations \
+            /app/client \
+            /app/node_modules \
+            /home/appuser/.npm-global \
+            /home/appuser/.npm && \
+    chown -R appuser:appuser /app /home/appuser && \
+    chmod -R 775 /app/node_modules
 
-# Copy files with correct ownership
-COPY --chown=1001:1001 --from=backend /app/packages/server/dist ./dist
-COPY --chown=1001:1001 --from=backend /app/packages/server/node_modules ./node_modules
-COPY --chown=1001:1001 --from=frontend /app/packages/client/build ./client
-COPY --chown=1001:1001 package.json ./
-
-# Set permissions again after copying
-RUN chown -R 1001:1001 /app && \
-    chmod -R 777 /app/node_modules
-
-# Switch to non-root user
+# Copy files as appuser
 USER appuser
-
-# Configure npm for the non-root user
-RUN npm config set prefix '/home/appuser/.npm-global' && \
-    npm install -g clickhouse-migrations typeorm typescript ts-node @types/node
-
-# Copy files with correct ownership
-COPY --chown=1001:1001 --from=backend /app/packages/server/dist ./dist
-COPY --chown=1001:1001 --from=backend /app/packages/server/node_modules ./node_modules
-COPY --chown=1001:1001 --from=frontend /app/packages/client/build ./client
-COPY --chown=1001:1001 package.json ./
+COPY --chown=appuser:appuser --from=base /app/package*.json ./
+COPY --chown=appuser:appuser --from=base /app/packages/server/package*.json ./packages/server/
+COPY --chown=appuser:appuser --from=backend /app/packages/server/dist ./dist
+COPY --chown=appuser:appuser --from=backend /app/packages/server/node_modules ./node_modules
+COPY --chown=appuser:appuser --from=frontend /app/packages/client/build ./client
+COPY --chown=appuser:appuser --from=backend /app/packages/server/src/data-source.ts ./packages/server/src/
+COPY --chown=appuser:appuser --from=frontend /app/SENTRY_RELEASE ./
+COPY --chown=appuser:appuser scripts ./scripts
+COPY --chown=appuser:appuser packages/server/migrations/* ./migrations/
+COPY --chown=appuser:appuser docker-entrypoint.sh ./
 
 ARG BACKEND_SENTRY_DSN_URL=https://15c7f142467b67973258e7cfaf814500@o4506038702964736.ingest.sentry.io/4506040630640640
 ARG EXTERNAL_URL
@@ -188,40 +181,17 @@ COPY scripts ./scripts
 COPY packages/server/migrations/* ./migrations/
 COPY docker-entrypoint.sh ./
 
-# Switch back to root for operations requiring elevated permissions
-USER root
+# Install global packages as appuser
+ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
+    NPM_CONFIG_PREFIX=/home/appuser/.npm-global
+RUN npm config set prefix '/home/appuser/.npm-global' && \
+    npm install -g clickhouse-migrations typeorm typescript ts-node @types/node
 
-RUN chmod +x docker-entrypoint.sh && \
-    chmod -R 755 /app/migrations && \
-    rm -f /usr/local/bin/clickhouse-migrations && \
-    ln -s /home/appuser/.npm-global/bin/clickhouse-migrations /usr/local/bin/clickhouse-migrations && \
-    npm cache clean --force && \
-    rm -rf /home/appuser/.npm/* && \
-    mkdir -p /home/appuser/.npm && \
-    chown -R 1001:1001 /home/appuser/.npm && \
-    chmod -R 775 /home/appuser/.npm
+# Final setup
+RUN chmod +x docker-entrypoint.sh
 
-# Switch back to non-root user for remaining operations
-USER appuser
-
-# Pre-create the npm cache directory with correct permissions
-RUN mkdir -p /home/appuser/.npm && \
-    npm config set cache /home/appuser/.npm --global
-
-# Verify PATH and installations
-RUN echo "PATH=$PATH" && \
-    which clickhouse-migrations && \
-    which typeorm && \
-    which ts-node
-
-# Configure container
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
 
-# Set up final permissions and user
-USER 1001
-
 ENTRYPOINT ["./docker-entrypoint.sh"]
-
-RUN ls -la /home/appuser/.npm-global/bin
