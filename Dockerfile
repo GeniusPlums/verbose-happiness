@@ -119,21 +119,22 @@ RUN ls -la /app/package.json || echo "No package.json in backend"
 FROM node:18-slim AS final
 WORKDIR /app
 
-# Create user first
-RUN adduser --uid 1001 --disabled-password --gecos "" appuser
+# Create user and set up directories first
+RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
+    mkdir -p \
+    /app/packages/server/src \
+    /app/migrations \
+    /app/client \
+    /app/node_modules \
+    /home/appuser/.npm-global \
+    /home/appuser/.npm && \
+    chown -R appuser:appuser /app /home/appuser
 
-# Create directories with correct permissions
-RUN mkdir -p /app/packages/server/src \
-            /app/migrations \
-            /app/client \
-            /app/node_modules \
-            /home/appuser/.npm-global \
-            /home/appuser/.npm && \
-    chown -R appuser:appuser /app /home/appuser && \
-    chmod -R 775 /app/node_modules
+# Copy entrypoint first and set permissions
+COPY --chown=appuser:appuser docker-entrypoint.sh ./
+RUN chmod +x docker-entrypoint.sh
 
-# Copy files as appuser
-USER appuser
+# Copy all files as appuser
 COPY --chown=appuser:appuser --from=base /app/package*.json ./
 COPY --chown=appuser:appuser --from=base /app/packages/server/package*.json ./packages/server/
 COPY --chown=appuser:appuser --from=backend /app/packages/server/dist ./dist
@@ -143,52 +144,15 @@ COPY --chown=appuser:appuser --from=backend /app/packages/server/src/data-source
 COPY --chown=appuser:appuser --from=frontend /app/SENTRY_RELEASE ./
 COPY --chown=appuser:appuser scripts ./scripts
 COPY --chown=appuser:appuser packages/server/migrations/* ./migrations/
-COPY --chown=appuser:appuser docker-entrypoint.sh ./
 
-ARG BACKEND_SENTRY_DSN_URL=https://15c7f142467b67973258e7cfaf814500@o4506038702964736.ingest.sentry.io/4506040630640640
-ARG EXTERNAL_URL
+# Switch to appuser for remaining operations
+USER appuser
 
-# Set runtime environment variables
-ENV SENTRY_DSN_URL_BACKEND=${BACKEND_SENTRY_DSN_URL} \
-    NODE_ENV=production \
-    ENVIRONMENT=production \
-    SERVE_CLIENT_FROM_NEST=true \
-    CLIENT_PATH=/app/client \
-    FRONTEND_URL=${EXTERNAL_URL:-http://localhost:3000} \
-    POSTHOG_HOST=https://app.posthog.com \
-    POSTHOG_KEY=RxdBl8vjdTwic7xTzoKTdbmeSC1PCzV6sw-x-FKSB-k \
-    DATABASE_URL=postgres://postgres:postgres@localhost:5432/laudspeaker \
-    PATH="/home/appuser/.npm-global/bin:$PATH" \
-    NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
-    CLICKHOUSE_DB=default
-
-WORKDIR /app
-
-# Debug: Check if package.json exists in final stage
-RUN ls -la /app/package.json || echo "No package.json in final"
-
-# Copy package files first
-COPY --from=base /app/package*.json ./
-COPY --from=base /app/packages/server/package*.json ./packages/server/
-
-# Copy build artifacts 
-COPY --from=frontend /app/packages/client/build ./client
-COPY --from=backend /app/packages/server/dist ./dist
-COPY --from=backend /app/packages/server/node_modules ./node_modules
-COPY --from=backend /app/packages/server/src/data-source.ts ./packages/server/src/
-COPY --from=frontend /app/SENTRY_RELEASE ./
-COPY scripts ./scripts
-COPY packages/server/migrations/* ./migrations/
-COPY docker-entrypoint.sh ./
-
-# Install global packages as appuser
 ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
     NPM_CONFIG_PREFIX=/home/appuser/.npm-global
+
 RUN npm config set prefix '/home/appuser/.npm-global' && \
     npm install -g clickhouse-migrations typeorm typescript ts-node @types/node
-
-# Final setup
-RUN chmod +x docker-entrypoint.sh
 
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
