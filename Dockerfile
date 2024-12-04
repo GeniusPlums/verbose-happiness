@@ -119,13 +119,13 @@ RUN ls -la /app/package.json || echo "No package.json in backend"
 FROM node:18-slim AS final
 WORKDIR /app
 
-# Create user first
+# Switch to root to create user and set up directories
+USER root
+
+# Create user and set up directories
 RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
-    # Create all necessary directories
-    mkdir -p /app/node_modules /home/appuser/.npm-global /home/appuser/.npm && \
-    # Set ownership and permissions
-    chown -R 1001:1001 /app /home/appuser && \
-    chmod -R 775 /app/node_modules
+    mkdir -p /app/packages/server/src /app/migrations /app/client /home/appuser/.npm-global && \
+    chown -R 1001:1001 /app /home/appuser
 
 # Switch to non-root user before any npm operations
 USER appuser
@@ -166,11 +166,6 @@ RUN ls -la /app/package.json || echo "No package.json in final"
 # Copy package files first
 COPY --from=base /app/package*.json ./
 COPY --from=base /app/packages/server/package*.json ./packages/server/
-
-# Create user and set up directories
-RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
-    mkdir -p /app/packages/server/src /app/migrations /app/client /home/appuser/.npm-global && \
-    chown -R 1001:1001 /app /home/appuser
 
 # Copy build artifacts 
 COPY --from=frontend /app/packages/client/build ./client
