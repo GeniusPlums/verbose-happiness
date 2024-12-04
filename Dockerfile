@@ -128,20 +128,11 @@ RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
             /home/appuser/.npm-global && \
     chown -R appuser:appuser /app /home/appuser
 
-# Copy and modify package.json files with module support
+# Copy and modify package.json files
 COPY --chown=appuser:appuser --from=base /app/package*.json ./
 COPY --chown=appuser:appuser --from=base /app/packages/server/package*.json ./packages/server/
 
-# Set up TypeScript and Node.js for ESM
-RUN node -e "const pkg = require('./package.json'); \
-    pkg.type = 'module'; \
-    pkg.engines = { ...pkg.engines, node: '>=18' }; \
-    require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2));"
-
-# Configure TypeORM for ESM
-ENV NODE_OPTIONS="--experimental-specifier-resolution=node --loader ts-node/esm"
-
-# Copy remaining files with correct permissions
+# Copy build artifacts
 COPY --chown=appuser:appuser --from=frontend /app/packages/client/build ./client/
 COPY --chown=appuser:appuser --from=backend /app/packages/server/dist ./dist/
 COPY --chown=appuser:appuser --from=backend /app/packages/server/node_modules ./node_modules/
@@ -154,18 +145,20 @@ RUN mkdir -p /home/appuser/.npm-global && \
 
 USER appuser
 
-# Configure npm and install global packages
+# Configure npm without ESM
 ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
-    NPM_CONFIG_PREFIX=/home/appuser/.npm-global
+    NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
+    NODE_OPTIONS=""
 
+# Install global packages one by one
 RUN npm config set prefix '/home/appuser/.npm-global' && \
-    npm install -g typescript && \
-    npm install -g ts-node && \
-    npm install -g typeorm && \
-    npm install -g clickhouse-migrations && \
-    npm install -g @types/node tslib
+    npm install -g typescript@4.9.5 && \
+    npm install -g tslib@2.6.2 && \
+    npm install -g ts-node@10.9.1 && \
+    npm install -g typeorm@0.3.17 && \
+    npm install -g clickhouse-migrations@1.0.0 && \
+    npm install -g @types/node@18.18.0
 
-# Expose port and set health check
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
