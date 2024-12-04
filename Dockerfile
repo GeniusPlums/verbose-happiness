@@ -169,3 +169,14 @@ EXPOSE 80
 ENTRYPOINT ["./docker-entrypoint.sh"]
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
+
+# Add these lines after the FROM statement to set up permissions correctly
+USER root
+RUN mkdir -p /home/appuser/.npm-global && \
+    chown -R 1001:1001 /home/appuser && \
+    npm config set prefix '/home/appuser/.npm-global'
+
+# Add this before the ENTRYPOINT
+USER 1001
+
+ENTRYPOINT ["./docker-entrypoint.sh"]
