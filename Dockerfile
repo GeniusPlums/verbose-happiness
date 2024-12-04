@@ -71,8 +71,15 @@ RUN cd packages/client && \
 FROM node:18-slim AS backend_build
 WORKDIR /app
 
+# Copy necessary files
 COPY --from=base /app ./
 COPY packages/server ./packages/server
+COPY packages/server/src ./packages/server/src
+COPY packages/server/src/data-source.ts ./packages/server/src/data-source.ts
+
+# Debug: List contents to verify files
+RUN ls -la /app/packages/server/src/data-source.ts || echo "data-source.ts not found!" && \
+    ls -la /app/packages/server/src/
 
 # Install dependencies and build backend
 RUN cd packages/server && \
@@ -96,28 +103,42 @@ ENV SENTRY_DSN_URL_BACKEND=${BACKEND_SENTRY_DSN_URL} \
     PATH=/app/node_modules/.bin:$PATH \
     FRONTEND_URL=${EXTERNAL_URL:-http://localhost:3000} \
     POSTHOG_HOST=https://app.posthog.com \
-    POSTHOG_KEY=RxdBl8vjdTwic7xTzoKTdbmeSC1PCzV6sw-x-FKSB-k
+    POSTHOG_KEY=RxdBl8vjdTwic7xTzoKTdbmeSC1PCzV6sw-x-FKSB-k \
+    NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
+    DATABASE_URL=postgres://postgres:postgres@localhost:5432/laudspeaker
 
 WORKDIR /app
 
-# Create necessary directories
-RUN mkdir -p /app/packages/server/src /app/migrations
+# Create necessary directories and set up permissions
+RUN mkdir -p /app/packages/server/src /app/migrations /app/client /home/appuser/.npm-global && \
+    # Add non-root user
+    adduser --disabled-password --gecos "" appuser && \
+    chown -R appuser:appuser /home/appuser && \
+    # Install global dependencies as root
+    npm install -g clickhouse-migrations typeorm @types/node ts-node && \
+    # Create required directories with proper permissions
+    mkdir -p /usr/local/lib/node_modules && \
+    chown -R appuser:appuser /usr/local/lib/node_modules && \
+    chmod 755 /usr/local/lib/node_modules && \
+    # Set proper permissions for app directory
+    chown -R appuser:appuser /app
 
 # Copy build artifacts and configurations
 COPY --from=frontend_build /app/packages/client/build ./client
 COPY --from=backend_build /app/packages/server/dist ./dist
 COPY --from=backend_build /app/packages/server/node_modules ./node_modules
+COPY --from=backend_build /app/packages/server/src/data-source.ts ./packages/server/src/
 COPY --from=frontend_build /app/SENTRY_RELEASE ./SENTRY_RELEASE
 COPY scripts ./scripts
 COPY packages/server/migrations/* ./migrations/
 COPY docker-entrypoint.sh ./
 
-# Set up permissions and install global dependencies
+# Set permissions for entrypoint
 RUN chmod +x docker-entrypoint.sh && \
-    npm install -g clickhouse-migrations && \
-    # Add non-root user for security
-    adduser --disabled-password --gecos "" appuser && \
-    chown -R appuser:appuser /app
+    chown appuser:appuser docker-entrypoint.sh && \
+    # Ensure proper permissions for key directories
+    chown -R appuser:appuser /app/packages && \
+    chown -R appuser:appuser /app/migrations
 
 # Switch to non-root user
 USER appuser
