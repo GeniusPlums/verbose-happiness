@@ -8,6 +8,9 @@ COPY package*.json ./
 COPY packages/client/package*.json ./packages/client/
 COPY packages/server/package*.json ./packages/server/
 
+# Debug: Check if package.json exists in base stage
+RUN ls -la /app/package.json || echo "No package.json in base"
+
 # Frontend build stage
 FROM node:18-slim AS frontend
 ARG EXTERNAL_URL
@@ -109,10 +112,16 @@ RUN ls -la /app/packages/server/dist
 # Copy Sentry release file from frontend build
 COPY --from=frontend /app/SENTRY_RELEASE ./SENTRY_RELEASE
 
+# Debug: Check if package.json exists in backend stage
+RUN ls -la /app/package.json || echo "No package.json in backend"
+
 # Final stage
 FROM node:18-slim AS final
 ARG BACKEND_SENTRY_DSN_URL=https://15c7f142467b67973258e7cfaf814500@o4506038702964736.ingest.sentry.io/4506040630640640
 ARG EXTERNAL_URL
+
+# Add this line to copy package.json directly from source
+COPY package.json ./
 
 # Set runtime environment variables
 ENV SENTRY_DSN_URL_BACKEND=${BACKEND_SENTRY_DSN_URL} \
@@ -129,6 +138,9 @@ ENV SENTRY_DSN_URL_BACKEND=${BACKEND_SENTRY_DSN_URL} \
     CLICKHOUSE_DB=default
 
 WORKDIR /app
+
+# Debug: Check if package.json exists in final stage
+RUN ls -la /app/package.json || echo "No package.json in final"
 
 # Copy package files first
 COPY --from=base /app/package*.json ./
