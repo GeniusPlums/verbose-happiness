@@ -75,6 +75,7 @@ FROM node:18-slim AS backend
 WORKDIR /app
 
 # Create TypeScript declarations first
+# Create TypeScript declarations first
 RUN mkdir -p /app/packages/server/src/@types && \
     echo 'import { User } from "../entities/user.entity";\n\
 \n\
@@ -91,9 +92,6 @@ declare global {\n\
 COPY --from=base /app ./
 COPY package*.json ./
 COPY packages/server/package*.json ./packages/server/
-
-# Create package.json with type module
-RUN node -e "const pkg = require('./package.json'); pkg.type = 'module'; require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2));"
 
 # Copy server source
 COPY packages/server ./packages/server
@@ -128,18 +126,22 @@ RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
             /app/client \
             /app/node_modules \
             /home/appuser/.npm-global && \
-    chown -R appuser:appuser /app /home/appuser && \
-    chmod -R 755 /app
+    chown -R appuser:appuser /app /home/appuser
 
-# Copy package.json files first
+# Copy and modify package.json files with module support
 COPY --chown=appuser:appuser --from=base /app/package*.json ./
 COPY --chown=appuser:appuser --from=base /app/packages/server/package*.json ./packages/server/
 
-# Copy artifacts and set permissions
-COPY --chown=appuser:appuser docker-entrypoint.sh ./
-RUN chmod +x docker-entrypoint.sh
+# Set up TypeScript and Node.js for ESM
+RUN node -e "const pkg = require('./package.json'); \
+    pkg.type = 'module'; \
+    pkg.engines = { ...pkg.engines, node: '>=18' }; \
+    require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2));"
 
-# Copy build artifacts with correct ownership
+# Configure TypeORM for ESM
+ENV NODE_OPTIONS="--experimental-specifier-resolution=node --loader ts-node/esm"
+
+# Copy remaining files with correct permissions
 COPY --chown=appuser:appuser --from=frontend /app/packages/client/build ./client/
 COPY --chown=appuser:appuser --from=backend /app/packages/server/dist ./dist/
 COPY --chown=appuser:appuser --from=backend /app/packages/server/node_modules ./node_modules/
@@ -148,6 +150,20 @@ COPY --chown=appuser:appuser --from=backend /app/packages/server/src/data-source
 USER appuser
 
 RUN npm config set prefix '/home/appuser/.npm-global' && \
-    npm install -g clickhouse-migrations typeorm typescript ts-node @types/node
+    npm install -g clickhouse-migrations typeorm typescript ts-node @types/node && \
+    npm install -g tslib @types/node
 
-ENTRYPOINT ["./docker-entrypoint.sh"]
+# Environment and port
+ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
+    NODE_ENV=production \
+    PORT=80
+
+# Expose port
+EXPOSE 80
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
+
+# Entrypoint
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
