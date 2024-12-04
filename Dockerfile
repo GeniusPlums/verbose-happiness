@@ -177,6 +177,9 @@ COPY scripts ./scripts
 COPY packages/server/migrations/* ./migrations/
 COPY docker-entrypoint.sh ./
 
+# Switch back to root for operations requiring elevated permissions
+USER root
+
 RUN chmod +x docker-entrypoint.sh && \
     chmod -R 755 /app/migrations && \
     rm -f /usr/local/bin/clickhouse-migrations && \
@@ -187,7 +190,7 @@ RUN chmod +x docker-entrypoint.sh && \
     chown -R 1001:1001 /home/appuser/.npm && \
     chmod -R 775 /home/appuser/.npm
 
-# Switch to non-root user
+# Switch back to non-root user for remaining operations
 USER appuser
 
 # Pre-create the npm cache directory with correct permissions
