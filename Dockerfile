@@ -120,10 +120,15 @@ FROM node:18-slim AS final
 WORKDIR /app
 
 # Install global dependencies
-RUN npm install -g clickhouse-migrations typeorm typescript ts-node @types/node
-
-# Verify PATH and installations
-RUN echo "PATH=$PATH" && \
+RUN mkdir -p /home/appuser/.npm-global && \
+    chown -R 1001:1001 /home/appuser/.npm-global && \
+    npm config set prefix '/home/appuser/.npm-global' && \
+    npm install -g clickhouse-migrations typeorm typescript ts-node @types/node && \
+    # Verify installation
+    ls -la /home/appuser/.npm-global/bin && \
+    # Add the bin directory to PATH
+    export PATH="/home/appuser/.npm-global/bin:$PATH" && \
+    # Verify installations
     which clickhouse-migrations && \
     which typeorm && \
     which ts-node
