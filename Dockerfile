@@ -130,39 +130,27 @@ ENV SENTRY_DSN_URL_BACKEND=${BACKEND_SENTRY_DSN_URL} \
 
 WORKDIR /app
 
-# Create necessary directories and set up permissions
-RUN mkdir -p /app/packages/server/src /app/migrations /app/client && \
-    # Add non-root user with specific UID/GID
-    adduser --uid 1001 --disabled-password --gecos "" appuser && \
-    # Create and set permissions for npm directories
-    mkdir -p /home/appuser/.npm-global && \
-    mkdir -p /home/appuser/.npm && \
-    chown -R 1001:1001 /home/appuser/.npm-global && \
-    chown -R 1001:1001 /home/appuser/.npm && \
-    chmod -R 775 /home/appuser/.npm-global && \
-    chmod -R 775 /home/appuser/.npm && \
-    # Install global dependencies as appuser
-    su - appuser -c "npm config set prefix '/home/appuser/.npm-global'" && \
-    su - appuser -c "npm install -g clickhouse-migrations typeorm typescript ts-node @types/node" && \
-    # Set proper permissions for app directory
-    chown -R 1001:1001 /app
+# Copy package files first
+COPY --from=base /app/package*.json ./
+COPY --from=base /app/packages/server/package*.json ./packages/server/
 
-# Copy build artifacts and configurations
+# Create user and set up directories
+RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
+    mkdir -p /app/packages/server/src /app/migrations /app/client /home/appuser/.npm-global && \
+    chown -R 1001:1001 /app /home/appuser
+
+# Copy build artifacts 
 COPY --from=frontend /app/packages/client/build ./client
 COPY --from=backend /app/packages/server/dist ./dist
 COPY --from=backend /app/packages/server/node_modules ./node_modules
 COPY --from=backend /app/packages/server/src/data-source.ts ./packages/server/src/
-COPY --from=frontend /app/SENTRY_RELEASE ./SENTRY_RELEASE
+COPY --from=frontend /app/SENTRY_RELEASE ./
 COPY scripts ./scripts
 COPY packages/server/migrations/* ./migrations/
 COPY docker-entrypoint.sh ./
 
-# Set permissions for entrypoint and other files
 RUN chmod +x docker-entrypoint.sh && \
-    chown -R 1001:1001 /app && \
-    # Explicitly set permissions for migrations directory
     chmod -R 755 /app/migrations && \
-    # Create symlink for clickhouse-migrations
     ln -s /home/appuser/.npm-global/bin/clickhouse-migrations /usr/local/bin/clickhouse-migrations && \
     # Clear npm cache and set permissions again
     npm cache clean --force && \
