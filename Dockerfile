@@ -147,23 +147,27 @@ COPY --chown=appuser:appuser --from=backend /app/packages/server/dist ./dist/
 COPY --chown=appuser:appuser --from=backend /app/packages/server/node_modules ./node_modules/
 COPY --chown=appuser:appuser --from=backend /app/packages/server/src/data-source.ts ./packages/server/src/
 
+# Set up npm global directory and permissions
+RUN mkdir -p /home/appuser/.npm-global && \
+    chown -R appuser:appuser /home/appuser/.npm-global && \
+    chmod -R 775 /home/appuser/.npm-global
+
 USER appuser
 
-RUN npm config set prefix '/home/appuser/.npm-global' && \
-    npm install -g clickhouse-migrations typeorm typescript ts-node @types/node && \
-    npm install -g tslib @types/node
-
-# Environment and port
+# Configure npm and install global packages
 ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
-    NODE_ENV=production \
-    PORT=80
+    NPM_CONFIG_PREFIX=/home/appuser/.npm-global
 
-# Expose port
+RUN npm config set prefix '/home/appuser/.npm-global' && \
+    npm install -g typescript && \
+    npm install -g ts-node && \
+    npm install -g typeorm && \
+    npm install -g clickhouse-migrations && \
+    npm install -g @types/node tslib
+
+# Expose port and set health check
 EXPOSE 80
-
-# Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
 
-# Entrypoint
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
