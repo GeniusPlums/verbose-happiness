@@ -71,20 +71,40 @@ RUN cd packages/client && \
 FROM node:18-slim AS backend
 WORKDIR /app
 
-# Copy necessary files
+# Create TypeScript declarations first
+# Create TypeScript declarations first
+RUN mkdir -p /app/packages/server/src/@types && \
+    echo 'import { User } from "../entities/user.entity";\n\
+\n\
+declare global {\n\
+  namespace Express {\n\
+    interface Request {\n\
+      user?: User;\n\
+    }\n\
+    interface User extends User {}\n\
+  }\n\
+}' > /app/packages/server/src/@types/express.d.ts
+
+# Copy base files including package.json
 COPY --from=base /app ./
+COPY package*.json ./
+COPY packages/server/package*.json ./packages/server/
+
+# Copy server source
 COPY packages/server ./packages/server
-COPY packages/server/src ./packages/server/src
-COPY packages/server/src/data-source.ts ./packages/server/src/data-source.ts
 
-# Debug: List contents to verify files
-RUN ls -la /app/packages/server/src/data-source.ts || echo "data-source.ts not found!" && \
-    ls -la /app/packages/server/src/
+# Verify files exist
+RUN ls -la /app/package.json && \
+    ls -la /app/packages/server/package.json && \
+    ls -la /app/packages/server/src/@types/express.d.ts
 
-# Install dependencies and build backend
+# Install dependencies and build
 RUN cd packages/server && \
     npm ci && \
     npm run build
+
+# Verify build artifacts
+RUN ls -la /app/packages/server/dist
 
 # Copy Sentry release file from frontend build
 COPY --from=frontend /app/SENTRY_RELEASE ./SENTRY_RELEASE
@@ -166,17 +186,10 @@ RUN echo "PATH=$PATH" && \
 
 # Configure container
 EXPOSE 80
-ENTRYPOINT ["./docker-entrypoint.sh"]
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
 
-# Add these lines after the FROM statement to set up permissions correctly
-USER root
-RUN mkdir -p /home/appuser/.npm-global && \
-    chown -R 1001:1001 /home/appuser && \
-    npm config set prefix '/home/appuser/.npm-global'
-
-# Add this before the ENTRYPOINT
+# Set up final permissions and user
 USER 1001
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
