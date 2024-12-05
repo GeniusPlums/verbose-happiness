@@ -119,28 +119,31 @@ RUN ls -la /app/package.json || echo "No package.json in backend"
 FROM node:18-slim AS final
 WORKDIR /app
 
-# Root setup
+# Root operations first
 RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
     mkdir -p \
         /app/packages/server/src \
         /app/migrations \
         /app/client \
         /app/node_modules \
-        /home/appuser/.npm-global && \
+        /home/appuser/.npm-global \
+        /home/appuser/.npm && \
     chown -R appuser:appuser /app /home/appuser && \
     chmod -R 755 /app
 
-# Copy migrations first (as root)
-COPY packages/server/migrations/* /app/migrations/
-RUN chown -R appuser:appuser /app/migrations && \
-    chmod -R 755 /app/migrations
+# Handle Sentry release first
+RUN echo "development" > /app/SENTRY_RELEASE && \
+    chown appuser:appuser /app/SENTRY_RELEASE
 
-# Copy and prepare entrypoint
-COPY docker-entrypoint.sh ./
-RUN chmod +x docker-entrypoint.sh && \
-    chown appuser:appuser docker-entrypoint.sh
+# Copy files with correct permissions
+COPY --chown=appuser:appuser docker-entrypoint.sh /app/
+RUN chmod 755 /app/docker-entrypoint.sh
 
-# Copy configuration and build artifacts with correct ownership
+# Copy migrations
+COPY --chown=appuser:appuser packages/server/migrations/* /app/migrations/
+RUN chmod 644 /app/migrations/*
+
+# Copy build artifacts
 COPY --chown=appuser:appuser --from=base /app/package*.json ./
 COPY --chown=appuser:appuser --from=base /app/packages/server/package*.json ./packages/server/
 COPY --chown=appuser:appuser --from=frontend /app/packages/client/build ./client/
@@ -149,35 +152,28 @@ COPY --chown=appuser:appuser --from=backend /app/packages/server/node_modules ./
 COPY --chown=appuser:appuser --from=backend /app/packages/server/src/data-source.ts ./packages/server/src/
 COPY --chown=appuser:appuser scripts ./scripts/
 
-# Copy migrations explicitly
-COPY --chown=appuser:appuser packages/server/migrations/001_initial.sql /app/migrations/
-RUN chmod 644 /app/migrations/001_initial.sql
-
-# Create SENTRY_RELEASE file
-RUN echo "development" > SENTRY_RELEASE && \
-    chown appuser:appuser SENTRY_RELEASE && \
-    chmod 644 SENTRY_RELEASE
+# Configure Node.js for ESM
+RUN echo '{"type":"module"}' > /app/package.json && \
+    chown appuser:appuser /app/package.json
 
 USER appuser
 
-# Configure npm without experimental flags
+# Environment without experimental flags
 ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
     NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
     NODE_ENV=production
 
-# Install all global packages in one command
+# Install global packages in correct order
 RUN npm config set prefix '/home/appuser/.npm-global' && \
-    npm install -g \
-        typescript@4.9.5 \
-        tslib@2.6.2 \
-        ts-node@10.9.1 \
-        typeorm@0.3.17 \
-        clickhouse-migrations@1.0.0 \
-        @types/node@18.18.0
+    npm install -g typescript@4.9.5 tslib@2.6.2 && \
+    npm install -g ts-node@10.9.1 && \
+    npm install -g typeorm@0.3.17 && \
+    npm install -g clickhouse-migrations@1.0.0 && \
+    npm install -g @types/node@18.18.0
 
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
 
-ENTRYPOINT ["./docker-entrypoint.sh"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
