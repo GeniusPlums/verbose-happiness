@@ -131,29 +131,13 @@ RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
     chown -R appuser:appuser /app /home/appuser && \
     chmod -R 755 /app
 
-# Copy files with correct ownership
+# Copy files
 COPY --chown=appuser:appuser docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
-# Copy configuration files
+# Copy configuration and artifacts
 COPY --chown=appuser:appuser --from=base /app/package*.json ./
 COPY --chown=appuser:appuser --from=base /app/packages/server/package*.json ./packages/server/
-
-# Set up TypeScript configuration for ESM
-RUN echo '{\n\
-  "compilerOptions": {\n\
-    "module": "ESNext",\n\
-    "moduleResolution": "node",\n\
-    "esModuleInterop": true\n\
-  },\n\
-  "ts-node": {\n\
-    "esm": true\n\
-  }\n\
-}' > tsconfig.json && \
-    echo '{"type":"module"}' > package.json && \
-    chown appuser:appuser tsconfig.json package.json
-
-# Copy build artifacts and source files
 COPY --chown=appuser:appuser --from=frontend /app/packages/client/build ./client/
 COPY --chown=appuser:appuser --from=backend /app/packages/server/dist ./dist/
 COPY --chown=appuser:appuser --from=backend /app/packages/server/node_modules ./node_modules/
@@ -163,21 +147,32 @@ COPY --chown=appuser:appuser packages/server/migrations/* ./migrations/
 
 USER appuser
 
-# Set environment for ESM support
+# Set basic environment without ESM
 ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
     NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
-    NODE_ENV=production \
-    NODE_OPTIONS="--experimental-specifier-resolution=node --loader ts-node/esm"
+    NODE_ENV=production
 
-# Install global packages
-RUN npm config set prefix '/home/appuser/.npm-global' && \
-    npm install -g \
-        typescript@4.9.5 \
-        tslib@2.6.2 \
-        ts-node@10.9.1 \
-        typeorm@0.3.17 \
-        clickhouse-migrations@1.0.0 \
-        @types/node@18.18.0
+# Install global packages without ESM settings
+RUN unset NODE_OPTIONS && \
+    npm config set prefix '/home/appuser/.npm-global' && \
+    npm install -g typescript@4.9.5 tslib@2.6.2 && \
+    npm install -g ts-node@10.9.1 && \
+    npm install -g typeorm@0.3.17 && \
+    npm install -g clickhouse-migrations@1.0.0 && \
+    npm install -g @types/node@18.18.0
+
+# Set up TypeScript and ESM configuration
+RUN echo '{\n\
+  "type": "module",\n\
+  "compilerOptions": {\n\
+    "module": "ESNext",\n\
+    "moduleResolution": "node",\n\
+    "esModuleInterop": true\n\
+  }\n\
+}' > package.json
+
+# Now set ESM environment for runtime
+ENV NODE_OPTIONS="--experimental-specifier-resolution=node --loader ts-node/esm"
 
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
