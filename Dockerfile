@@ -119,22 +119,28 @@ RUN ls -la /app/package.json || echo "No package.json in backend"
 FROM node:18-slim AS final
 WORKDIR /app
 
-# Root operations first - Create user and directories
+# Root setup
 RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
     mkdir -p \
         /app/packages/server/src \
         /app/migrations \
         /app/client \
         /app/node_modules \
-        /home/appuser/.npm-global \
-        /home/appuser/.npm
+        /home/appuser/.npm-global && \
+    chown -R appuser:appuser /app /home/appuser && \
+    chmod -R 755 /app
 
-# Copy and set permissions for entrypoint FIRST
-COPY docker-entrypoint.sh /app/
-RUN chmod 755 /app/docker-entrypoint.sh && \
-    chown -R appuser:appuser /app /home/appuser
+# Copy migrations first (as root)
+COPY packages/server/migrations/* /app/migrations/
+RUN chown -R appuser:appuser /app/migrations && \
+    chmod -R 755 /app/migrations
 
-# Copy files with correct ownership
+# Copy and prepare entrypoint
+COPY docker-entrypoint.sh ./
+RUN chmod +x docker-entrypoint.sh && \
+    chown appuser:appuser docker-entrypoint.sh
+
+# Copy configuration and build artifacts with correct ownership
 COPY --chown=appuser:appuser --from=base /app/package*.json ./
 COPY --chown=appuser:appuser --from=base /app/packages/server/package*.json ./packages/server/
 COPY --chown=appuser:appuser --from=frontend /app/packages/client/build ./client/
@@ -143,30 +149,28 @@ COPY --chown=appuser:appuser --from=backend /app/packages/server/node_modules ./
 COPY --chown=appuser:appuser --from=backend /app/packages/server/src/data-source.ts ./packages/server/src/
 COPY --chown=appuser:appuser scripts ./scripts/
 
-# Switch to appuser
+# Handle SENTRY_RELEASE
+COPY --chown=appuser:appuser --from=frontend /app/SENTRY_RELEASE ./ || echo "development" > SENTRY_RELEASE
+
 USER appuser
 
-# Set up npm without ESM initially
+# Configure npm and environment
 ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
     NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
-    NODE_ENV=production
+    NODE_ENV=production \
+    NODE_OPTIONS="--es-module-specifier-resolution=node"
 
-# Install global packages
+# Install global packages in correct order
 RUN npm config set prefix '/home/appuser/.npm-global' && \
-    cd /app && \
-    npm install -g \
-        typescript@4.9.5 \
-        tslib@2.6.2 \
-        ts-node@10.9.1 \
-        typeorm@0.3.17 \
-        clickhouse-migrations@1.0.0 \
-        @types/node@18.18.0
-
-# Now set NODE_OPTIONS for runtime
-ENV NODE_OPTIONS="--es-module-specifier-resolution=node"
+    npm install -g typescript@4.9.5 tslib@2.6.2 && \
+    npm install -g ts-node@10.9.1 && \
+    npm install -g typeorm@0.3.17 && \
+    npm install -g clickhouse-migrations@1.0.0 && \
+    npm install -g @types/node@18.18.0
 
 EXPOSE 80
+
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
 
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+ENTRYPOINT ["./docker-entrypoint.sh"]
