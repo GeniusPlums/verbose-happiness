@@ -152,6 +152,24 @@ const AppDataSource = new DataSource({\n\
 \n\
 module.exports = AppDataSource;' > /app/typeorm.config.js
 
+# Create TypeORM config (CommonJS format)
+RUN echo "module.exports = {" > /app/typeorm.config.js && \
+    echo "  type: 'postgres'," >> /app/typeorm.config.js && \
+    echo "  host: process.env.DB_HOST || 'localhost'," >> /app.typeorm.config.js && \
+    echo "  port: parseInt(process.env.DB_PORT) || 5432," >> /app/typeorm.config.js && \
+    echo "  username: process.env.DB_USER || 'postgres'," >> /app/typeorm.config.js && \
+    echo "  password: process.env.DB_PASSWORD || 'postgres'," >> /app/typeorm.config.js && \
+    echo "  database: process.env.DB_NAME || 'laudspeaker'," >> /app/typeorm.config.js && \
+    echo "  entities: ['dist/**/*.entity.js']," >> /app/typeorm.config.js && \
+    echo "  migrations: ['migrations/*.js']," >> /app/typeorm.config.js && \
+    echo "  synchronize: false" >> /app/typeorm.config.js && \
+    echo "};" >> /app/typeorm.config.js && \
+    chown appuser:appuser /app/typeorm.config.js
+
+# Create default SENTRY_RELEASE
+RUN echo "development" > /app/SENTRY_RELEASE && \
+    chown appuser:appuser /app/SENTRY_RELEASE
+
 # Copy configuration and artifacts
 COPY --chown=appuser:appuser --from=base /app/package*.json ./
 COPY --chown=appuser:appuser --from=base /app/packages/server/package*.json ./packages/server/
