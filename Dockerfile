@@ -131,49 +131,60 @@ RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
     chown -R appuser:appuser /app /home/appuser && \
     chmod -R 755 /app
 
-# Handle Sentry release first
-RUN echo "development" > /app/SENTRY_RELEASE && \
-    chown appuser:appuser /app/SENTRY_RELEASE
+# Copy migrations first
+COPY --chown=appuser:appuser packages/server/migrations/* ./migrations/
 
-# Copy files with correct permissions
-COPY --chown=appuser:appuser docker-entrypoint.sh /app/
-RUN chmod 755 /app/docker-entrypoint.sh
+# Copy files with correct ownership
+COPY --chown=appuser:appuser docker-entrypoint.sh ./
+RUN chmod +x docker-entrypoint.sh
 
-# Copy migrations
-COPY --chown=appuser:appuser packages/server/migrations/* /app/migrations/
-RUN chmod 644 /app/migrations/*
-
-# Copy build artifacts
+# Copy configuration files first
 COPY --chown=appuser:appuser --from=base /app/package*.json ./
 COPY --chown=appuser:appuser --from=base /app/packages/server/package*.json ./packages/server/
+
+# Set up TypeScript configuration for ESM
+RUN echo '{\n\
+  "compilerOptions": {\n\
+    "module": "ESNext",\n\
+    "moduleResolution": "node",\n\
+    "esModuleInterop": true\n\
+  },\n\
+  "ts-node": {\n\
+    "esm": true\n\
+  }\n\
+}' > tsconfig.json && \
+    chown appuser:appuser tsconfig.json
+
+# Copy remaining files
 COPY --chown=appuser:appuser --from=frontend /app/packages/client/build ./client/
 COPY --chown=appuser:appuser --from=backend /app/packages/server/dist ./dist/
 COPY --chown=appuser:appuser --from=backend /app/packages/server/node_modules ./node_modules/
 COPY --chown=appuser:appuser --from=backend /app/packages/server/src/data-source.ts ./packages/server/src/
 COPY --chown=appuser:appuser scripts ./scripts/
+COPY --chown=appuser:appuser packages/server/migrations/* ./migrations/
 
-# Configure Node.js for ESM
-RUN echo '{"type":"module"}' > /app/package.json && \
-    chown appuser:appuser /app/package.json
+# Verify file exists in backend stage first
+COPY --from=backend /app/packages/server/src/data-source.ts /tmp/verify.ts
+RUN test -f /tmp/verify.ts
+
+# Create directory and copy with verification
+RUN mkdir -p /app/packages/server/src
+COPY --chown=appuser:appuser --from=backend /app/packages/server/src/data-source.ts /app/packages/server/src/
+RUN test -f /app/packages/server/src/data-source.ts && \
+    chmod 644 /app/packages/server/src/data-source.ts
 
 USER appuser
 
-# Environment without experimental flags
 ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
     NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
-    NODE_ENV=production
+    NODE_ENV=production \
+    NODE_OPTIONS="--experimental-specifier-resolution=node --loader ts-node/esm"
 
-# Install global packages in correct order
 RUN npm config set prefix '/home/appuser/.npm-global' && \
-    npm install -g typescript@4.9.5 tslib@2.6.2 && \
-    npm install -g ts-node@10.9.1 && \
-    npm install -g typeorm@0.3.17 && \
-    npm install -g clickhouse-migrations@1.0.0 && \
-    npm install -g @types/node@18.18.0
+    npm install -g typescript@4.9.5 tslib@2.6.2 ts-node@10.9.1 typeorm@0.3.17 clickhouse-migrations@1.0.0 @types/node@18.18.0
 
 EXPOSE 80
-
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
 
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+ENTRYPOINT ["./docker-entrypoint.sh"]
