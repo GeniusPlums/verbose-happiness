@@ -149,25 +149,31 @@ COPY --chown=appuser:appuser --from=backend /app/packages/server/node_modules ./
 COPY --chown=appuser:appuser --from=backend /app/packages/server/src/data-source.ts ./packages/server/src/
 COPY --chown=appuser:appuser scripts ./scripts/
 
-# Handle SENTRY_RELEASE
-COPY --chown=appuser:appuser --from=frontend /app/SENTRY_RELEASE ./
-RUN if [ ! -f SENTRY_RELEASE ]; then echo "development" > SENTRY_RELEASE; fi
+# Copy migrations explicitly
+COPY --chown=appuser:appuser packages/server/migrations/001_initial.sql /app/migrations/
+RUN chmod 644 /app/migrations/001_initial.sql
+
+# Create SENTRY_RELEASE file
+RUN echo "development" > SENTRY_RELEASE && \
+    chown appuser:appuser SENTRY_RELEASE && \
+    chmod 644 SENTRY_RELEASE
 
 USER appuser
 
-# Configure npm and environment
+# Configure npm without experimental flags
 ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
     NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
-    NODE_ENV=production \
-    NODE_OPTIONS="--es-module-specifier-resolution=node"
+    NODE_ENV=production
 
-# Install global packages in correct order
+# Install all global packages in one command
 RUN npm config set prefix '/home/appuser/.npm-global' && \
-    npm install -g typescript@4.9.5 tslib@2.6.2 && \
-    npm install -g ts-node@10.9.1 && \
-    npm install -g typeorm@0.3.17 && \
-    npm install -g clickhouse-migrations@1.0.0 && \
-    npm install -g @types/node@18.18.0
+    npm install -g \
+        typescript@4.9.5 \
+        tslib@2.6.2 \
+        ts-node@10.9.1 \
+        typeorm@0.3.17 \
+        clickhouse-migrations@1.0.0 \
+        @types/node@18.18.0
 
 EXPOSE 80
 
