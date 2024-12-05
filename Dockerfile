@@ -150,7 +150,8 @@ COPY --chown=appuser:appuser --from=backend /app/packages/server/src/data-source
 COPY --chown=appuser:appuser scripts ./scripts/
 
 # Handle SENTRY_RELEASE
-COPY --chown=appuser:appuser --from=frontend /app/SENTRY_RELEASE ./ || echo "development" > SENTRY_RELEASE
+COPY --chown=appuser:appuser --from=frontend /app/SENTRY_RELEASE ./
+RUN if [ ! -f SENTRY_RELEASE ]; then echo "development" > SENTRY_RELEASE; fi
 
 USER appuser
 
