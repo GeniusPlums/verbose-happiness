@@ -130,47 +130,40 @@ RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
     chown -R appuser:appuser /app /home/appuser && \
     chmod -R 755 /app
 
-# Copy files
+# Copy files and configs first
 COPY --chown=appuser:appuser docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
-# Create migration loader
-RUN echo $'const { DataSource } = require("typeorm");\n\
-const path = require("path");\n\
+# Create TypeORM config with proper DataSource instance
+RUN echo "const { DataSource } = require('typeorm');\n\
 \n\
 const AppDataSource = new DataSource({\n\
-  type: "postgres",\n\
-  host: process.env.DB_HOST || "localhost",\n\
+  type: 'postgres',\n\
+  host: process.env.DB_HOST || 'localhost',\n\
   port: parseInt(process.env.DB_PORT) || 5432,\n\
-  username: process.env.DB_USER || "postgres",\n\
-  password: process.env.DB_PASSWORD || "postgres",\n\
-  database: process.env.DB_NAME || "laudspeaker",\n\
-  entities: [path.join(__dirname, "dist/**/*.entity.js")],\n\
-  migrations: [path.join(__dirname, "migrations/*.js")],\n\
-  synchronize: false\n\
+  username: process.env.DB_USER || 'postgres',\n\
+  password: process.env.DB_PASSWORD || 'postgres',\n\
+  database: process.env.DB_NAME || 'laudspeaker',\n\
+  entities: ['dist/**/*.entity.js'],\n\
+  migrations: ['migrations/*.js'],\n\
+  migrationsTableName: 'migrations',\n\
+  migrationsRun: true,\n\
+  logging: true,\n\
+  synchronize: false,\n\
+  cli: {\n\
+    migrationsDir: 'migrations'\n\
+  }\n\
 });\n\
 \n\
-module.exports = AppDataSource;' > /app/typeorm.config.js
+AppDataSource.initialize()\n\
+  .then(() => console.log('Data Source has been initialized'))\n\
+  .catch((err) => console.error('Error during Data Source initialization', err));\n\
+\n\
+module.exports = AppDataSource;" > /app/typeorm.config.js && \
+    chown appuser:appuser /app/typeorm.config.js && \
+    chmod 644 /app/typeorm.config.js
 
-# Create TypeORM config as a single command
-RUN echo "module.exports = { \
-  type: 'postgres', \
-  host: process.env.DB_HOST || 'localhost', \
-  port: parseInt(process.env.DB_PORT) || 5432, \
-  username: process.env.DB_USER || 'postgres', \
-  password: process.env.DB_PASSWORD || 'postgres', \
-  database: process.env.DB_NAME || 'laudspeaker', \
-  entities: ['dist/**/*.entity.js'], \
-  migrations: ['migrations/*.js'], \
-  synchronize: false \
-};" > /app/typeorm.config.js && \
-chown appuser:appuser /app/typeorm.config.js
-
-# Create default SENTRY_RELEASE
-RUN echo "development" > /app/SENTRY_RELEASE && \
-    chown appuser:appuser /app/SENTRY_RELEASE
-
-# Copy configuration and artifacts
+# Copy artifacts in correct order
 COPY --chown=appuser:appuser --from=base /app/package*.json ./
 COPY --chown=appuser:appuser --from=base /app/packages/server/package*.json ./packages/server/
 COPY --chown=appuser:appuser --from=frontend /app/packages/client/build ./client/
@@ -185,8 +178,10 @@ USER appuser
 ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
     NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
     NODE_ENV=production \
-    TYPEORM_CONFIG=/app/typeorm.config.js
+    TYPEORM_CONFIG=/app/typeorm.config.js \
+    TS_NODE_PROJECT=tsconfig.json
 
+# Install dependencies with specific versions
 RUN npm config set prefix '/home/appuser/.npm-global' && \
     npm install -g typescript@4.9.5 tslib@2.6.2 ts-node@10.9.1 typeorm@0.3.17 clickhouse-migrations@1.0.0 @types/node@18.18.0
 
