@@ -130,7 +130,10 @@ RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
     chown -R appuser:appuser /app /home/appuser && \
     chmod -R 755 /app
 
-# Copy files
+# Copy files and set SENTRY_RELEASE
+RUN echo "development" > /app/SENTRY_RELEASE && \
+    chown appuser:appuser /app/SENTRY_RELEASE
+
 COPY --chown=appuser:appuser docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
@@ -144,22 +147,21 @@ COPY --chown=appuser:appuser --from=backend /app/packages/server/src/data-source
 COPY --chown=appuser:appuser scripts ./scripts/
 COPY --chown=appuser:appuser packages/server/migrations/* ./migrations/
 
+# Create tsconfig.json for CommonJS
+RUN echo '{"compilerOptions":{"module":"CommonJS"}}' > /app/tsconfig.json && \
+    chown appuser:appuser /app/tsconfig.json
+
 USER appuser
 
-# Basic environment
+# Basic environment without module flags
 ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
     NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
     NODE_ENV=production
 
-# Install global packages
+# Install global packages without experimental flags
 RUN npm config set prefix '/home/appuser/.npm-global' && \
-    npm install -g \
-        typescript@4.9.5 \
-        tslib@2.6.2 \
-        ts-node@10.9.1 \
-        typeorm@0.3.17 \
-        clickhouse-migrations@1.0.0 \
-        @types/node@18.18.0
+    unset NODE_OPTIONS && \
+    npm install -g typescript@4.9.5 tslib@2.6.2 ts-node@10.9.1 typeorm@0.3.17 clickhouse-migrations@1.0.0 @types/node@18.18.0
 
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
