@@ -119,7 +119,7 @@ RUN ls -la /app/package.json || echo "No package.json in backend"
 FROM node:18-slim AS final
 WORKDIR /app
 
-# Root operations first
+# Root operations first - Create user and directories
 RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
     mkdir -p \
         /app/packages/server/src \
@@ -127,15 +127,14 @@ RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
         /app/client \
         /app/node_modules \
         /home/appuser/.npm-global \
-        /home/appuser/.npm && \
+        /home/appuser/.npm
+
+# Copy and set permissions for entrypoint FIRST
+COPY docker-entrypoint.sh /app/
+RUN chmod 755 /app/docker-entrypoint.sh && \
     chown -R appuser:appuser /app /home/appuser
 
-# Copy files first
-COPY docker-entrypoint.sh ./
-RUN chmod +x docker-entrypoint.sh && \
-    chown appuser:appuser docker-entrypoint.sh
-
-# Copy remaining files with correct ownership
+# Copy files with correct ownership
 COPY --chown=appuser:appuser --from=base /app/package*.json ./
 COPY --chown=appuser:appuser --from=base /app/packages/server/package*.json ./packages/server/
 COPY --chown=appuser:appuser --from=frontend /app/packages/client/build ./client/
@@ -144,15 +143,17 @@ COPY --chown=appuser:appuser --from=backend /app/packages/server/node_modules ./
 COPY --chown=appuser:appuser --from=backend /app/packages/server/src/data-source.ts ./packages/server/src/
 COPY --chown=appuser:appuser scripts ./scripts/
 
+# Switch to appuser
 USER appuser
 
-# Configure npm and environment
+# Set up npm without ESM initially
 ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
     NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
-    NODE_OPTIONS="--es-module-specifier-resolution=node"
+    NODE_ENV=production
 
-# Install global packages in one command to reduce layers
+# Install global packages
 RUN npm config set prefix '/home/appuser/.npm-global' && \
+    cd /app && \
     npm install -g \
         typescript@4.9.5 \
         tslib@2.6.2 \
@@ -161,9 +162,11 @@ RUN npm config set prefix '/home/appuser/.npm-global' && \
         clickhouse-migrations@1.0.0 \
         @types/node@18.18.0
 
-# Final configuration
+# Now set NODE_OPTIONS for runtime
+ENV NODE_OPTIONS="--es-module-specifier-resolution=node"
+
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
 
-ENTRYPOINT ["./docker-entrypoint.sh"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
