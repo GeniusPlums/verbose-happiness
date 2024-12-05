@@ -127,20 +127,23 @@ RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
         /app/client \
         /app/node_modules \
         /home/appuser/.npm-global \
-        /home.appuser/.npm && \
-    chown -R appuser:appuser /app /home/appuser && \
-    chmod -R 775 /app
+        /home/appuser/.npm && \
+    chown -R appuser:appuser /app /home/appuser
 
-# Copy files with correct ownership
+# Copy files first
+COPY docker-entrypoint.sh ./
+RUN chmod +x docker-entrypoint.sh && \
+    chown appuser:appuser docker-entrypoint.sh
+
+# Copy remaining files with correct ownership
 COPY --chown=appuser:appuser --from=base /app/package*.json ./
 COPY --chown=appuser:appuser --from=base /app/packages/server/package*.json ./packages/server/
 COPY --chown=appuser:appuser --from=frontend /app/packages/client/build ./client/
 COPY --chown=appuser:appuser --from=backend /app/packages/server/dist ./dist/
 COPY --chown=appuser:appuser --from=backend /app/packages/server/node_modules ./node_modules/
 COPY --chown=appuser:appuser --from=backend /app/packages/server/src/data-source.ts ./packages/server/src/
-COPY --chown=appuser:appuser docker-entrypoint.sh ./
+COPY --chown=appuser:appuser scripts ./scripts/
 
-# Switch to non-root user
 USER appuser
 
 # Configure npm and environment
