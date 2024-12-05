@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+# Ensure SENTRY_RELEASE exists
+[ -f SENTRY_RELEASE ] || echo "development" > SENTRY_RELEASE
 export SENTRY_RELEASE=$(cat SENTRY_RELEASE)
 
 echo "Running clickhouse-migrations"
@@ -12,18 +14,7 @@ clickhouse-migrations migrate \
     --migrations-home ./migrations
 
 echo "Running Typeorm migrations"
-npm install -g ts-node typescript @types/node typeorm
-npm install --legacy-peer-deps
-
-# Debug: Show directory structure
-echo "Current directory: $(pwd)"
-echo "Checking packages/server/src directory:"
-ls -la packages/server/src || echo "Directory not found"
-echo "Listing contents of /app/packages/server/src:"
-ls -la /app/packages/server/src || echo "Directory not found"
-
-# Run migrations with new config
-typeorm migration:run -d /app/typeorm.config.js
+NODE_OPTIONS="" typeorm migration:run -d /app/typeorm.config.js
 
 # Process type handling
 if [[ "$1" = 'web' || -z "$1" ]]; then
