@@ -151,17 +151,36 @@ COPY --chown=appuser:appuser packages/server/migrations/* ./migrations/
 RUN echo '{"compilerOptions":{"module":"CommonJS"}}' > /app/tsconfig.json && \
     chown appuser:appuser /app/tsconfig.json
 
+# Create CommonJS migration config
+RUN /bin/sh -c 'echo "module.exports = { \
+  type: \"postgres\", \
+  host: process.env.DB_HOST || \"localhost\", \
+  port: parseInt(process.env.DB_PORT) || 5432, \
+  username: process.env.DB_USER || \"postgres\", \
+  password: process.env.DB_PASSWORD || \"postgres\", \
+  database: process.env.DB_NAME || \"laudspeaker\", \
+  entities: [\"dist/**/*.entity.js\"], \
+  migrations: [\"migrations/*.js\"], \
+  synchronize: false \
+};" > /app/typeorm.config.js' && \
+    chown appuser:appuser /app/typeorm.config.js
+
 USER appuser
 
-# Basic environment without module flags
 ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
     NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
-    NODE_ENV=production
+    NODE_ENV=production \
+    TYPEORM_CONFIG_FILE=/app/typeorm.config.js
 
-# Install global packages without experimental flags
+# Install global packages without module flags
 RUN npm config set prefix '/home/appuser/.npm-global' && \
     unset NODE_OPTIONS && \
     npm install -g typescript@4.9.5 tslib@2.6.2 ts-node@10.9.1 typeorm@0.3.17 clickhouse-migrations@1.0.0 @types/node@18.18.0
+
+# Update entrypoint command to use config file
+ENV TYPEORM_CONFIG=/app/typeorm.config.js \
+    TS_NODE_PREFER_TS_EXTS=true \
+    TS_NODE_TRANSPILE_ONLY=true
 
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
