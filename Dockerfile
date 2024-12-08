@@ -169,17 +169,29 @@ COPY --chown=appuser:appuser --from=backend /app/packages/server/src/data-source
 COPY --chown=appuser:appuser scripts ./scripts/
 COPY --chown=appuser:appuser packages/server/migrations/* ./migrations/
 
+# Create package.json with type: module
+RUN echo '{"type":"module"}' > package.json && \
+    chown appuser:appuser package.json
+
 USER appuser
 
+# Set environment without experimental flags
 ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
     NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
-    NODE_ENV=production \
-    TYPEORM_CONFIG=/app/typeorm.config.js \
-    TS_NODE_PROJECT=tsconfig.json
+    NODE_ENV=production
 
-# Install dependencies with specific versions
-RUN npm config set prefix '/home/appuser/.npm-global' && \
-    npm install -g typescript@4.9.5 tslib@2.6.2 ts-node@10.9.1 typeorm@0.3.17 clickhouse-migrations@1.0.0 @types/node@18.18.0
+# Install global packages without ESM
+RUN unset NODE_OPTIONS && \
+    npm config set prefix '/home/appuser/.npm-global' && \
+    npm install -g typescript@4.9.5 && \
+    npm install -g tslib@2.6.2 && \
+    npm install -g ts-node@10.9.1 && \
+    npm install -g typeorm@0.3.17 && \
+    npm install -g clickhouse-migrations@1.0.0 && \
+    npm install -g @types/node@18.18.0
+
+# Now set NODE_OPTIONS for runtime
+ENV NODE_OPTIONS="--es-module-specifier-resolution=node"
 
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
