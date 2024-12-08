@@ -155,9 +155,9 @@ const AppDataSource = new DataSource({\n\
   synchronize: false\n\
 });\n\
 \n\
-module.exports = AppDataSource;" > /app/typeorm.config.js && \
-    chown appuser:appuser /app/typeorm.config.js && \
-    chmod 644 /app/typeorm.config.js
+module.exports = AppDataSource;" > /app/typeorm.config.cjs && \
+    chown appuser:appuser /app/typeorm.config.cjs && \
+    chmod 644 /app/typeorm.config.cjs
 
 # Copy artifacts in correct order
 COPY --chown=appuser:appuser --from=base /app/package*.json ./
@@ -178,7 +178,9 @@ USER appuser
 # Set environment without experimental flags
 ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
     NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
-    NODE_ENV=production
+    NODE_ENV=production \
+    TYPEORM_CONFIG=/app/typeorm.config.cjs \
+    TS_NODE_PROJECT=tsconfig.json
 
 # Install global packages without ESM
 RUN unset NODE_OPTIONS && \
