@@ -142,7 +142,7 @@ RUN npm install typeorm@0.3.17 pg@8.11.3
 RUN echo "const { DataSource } = require('typeorm');\n\
 const path = require('path');\n\
 \n\
-const AppDataSource = new DataSource({\n\
+const dataSource = new DataSource({\n\
   type: 'postgres',\n\
   host: process.env.DB_HOST || 'localhost',\n\
   port: parseInt(process.env.DB_PORT) || 5432,\n\
@@ -159,7 +159,8 @@ const AppDataSource = new DataSource({\n\
   synchronize: false\n\
 });\n\
 \n\
-module.exports = AppDataSource;" > /app/typeorm.config.cjs && \
+module.exports = dataSource;\n\
+module.exports.default = dataSource;" > /app/typeorm.config.cjs && \
     chown appuser:appuser /app/typeorm.config.cjs && \
     chmod 644 /app/typeorm.config.cjs
 
