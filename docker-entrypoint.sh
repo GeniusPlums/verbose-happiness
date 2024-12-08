@@ -14,7 +14,7 @@ clickhouse-migrations migrate \
     --migrations-home ./migrations
 
 echo "Running Typeorm migrations"
-NODE_OPTIONS="" typeorm migration:run -d /app/typeorm.config.js
+NODE_OPTIONS="" npx typeorm migration:run -d /app/typeorm.config.cjs
 
 # Process type handling
 if [[ "$1" = 'web' || -z "$1" ]]; then
