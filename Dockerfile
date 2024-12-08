@@ -136,6 +136,7 @@ RUN chmod +x docker-entrypoint.sh
 
 # Create TypeORM config with proper DataSource instance
 RUN echo "const { DataSource } = require('typeorm');\n\
+const path = require('path');\n\
 \n\
 const AppDataSource = new DataSource({\n\
   type: 'postgres',\n\
@@ -144,20 +145,15 @@ const AppDataSource = new DataSource({\n\
   username: process.env.DB_USER || 'postgres',\n\
   password: process.env.DB_PASSWORD || 'postgres',\n\
   database: process.env.DB_NAME || 'laudspeaker',\n\
-  entities: ['dist/**/*.entity.js'],\n\
-  migrations: ['migrations/*.js'],\n\
+  entities: [path.join(__dirname, 'dist/**/*.entity.{js,ts}')],\n\
+  migrations: [path.join(__dirname, 'migrations/*.{js,ts}')],\n\
   migrationsTableName: 'migrations',\n\
   migrationsRun: true,\n\
-  logging: true,\n\
-  synchronize: false,\n\
-  cli: {\n\
-    migrationsDir: 'migrations'\n\
-  }\n\
+  logging: process.env.NODE_ENV === 'production' \n\
+    ? ['error', 'warn']  // Production logging\n\
+    : ['query', 'error', 'warn'],  // Development logging\n\
+  synchronize: false\n\
 });\n\
-\n\
-AppDataSource.initialize()\n\
-  .then(() => console.log('Data Source has been initialized'))\n\
-  .catch((err) => console.error('Error during Data Source initialization', err));\n\
 \n\
 module.exports = AppDataSource;" > /app/typeorm.config.js && \
     chown appuser:appuser /app/typeorm.config.js && \
