@@ -8,6 +8,9 @@ COPY package*.json ./
 COPY packages/client/package*.json ./packages/client/
 COPY packages/server/package*.json ./packages/server/
 
+# Debug: Check if package.json exists in base stage
+RUN ls -la /app/package.json || echo "No package.json in base"
+
 # Frontend build stage
 FROM node:18-slim AS frontend
 ARG EXTERNAL_URL
@@ -71,101 +74,124 @@ RUN cd packages/client && \
 FROM node:18-slim AS backend
 WORKDIR /app
 
-# Copy necessary files
+# Create TypeScript declarations first
+# Create TypeScript declarations first
+RUN mkdir -p /app/packages/server/src/@types && \
+    echo 'import { User } from "../entities/user.entity";\n\
+\n\
+declare global {\n\
+  namespace Express {\n\
+    interface Request {\n\
+      user?: User;\n\
+    }\n\
+    interface User extends User {}\n\
+  }\n\
+}' > /app/packages/server/src/@types/express.d.ts
+
+# Copy base files including package.json
 COPY --from=base /app ./
+COPY package*.json ./
+COPY packages/server/package*.json ./packages/server/
+
+# Copy server source
 COPY packages/server ./packages/server
-COPY packages/server/src ./packages/server/src
-COPY packages/server/src/data-source.ts ./packages/server/src/data-source.ts
 
-# Debug: List contents to verify files
-RUN ls -la /app/packages/server/src/data-source.ts || echo "data-source.ts not found!" && \
-    ls -la /app/packages/server/src/
+# Verify files exist
+RUN ls -la /app/package.json && \
+    ls -la /app/packages/server/package.json && \
+    ls -la /app/packages/server/src/@types/express.d.ts
 
-# Install dependencies and build backend
+# Install dependencies and build
 RUN cd packages/server && \
     npm ci && \
     npm run build
 
+# Verify build artifacts
+RUN ls -la /app/packages/server/dist
+
 # Copy Sentry release file from frontend build
 COPY --from=frontend /app/SENTRY_RELEASE ./SENTRY_RELEASE
 
+# Debug: Check if package.json exists in backend stage
+RUN ls -la /app/package.json || echo "No package.json in backend"
+
 # Final stage
 FROM node:18-slim AS final
-ARG BACKEND_SENTRY_DSN_URL=https://15c7f142467b67973258e7cfaf814500@o4506038702964736.ingest.sentry.io/4506040630640640
-ARG EXTERNAL_URL
-
-# Set runtime environment variables
-ENV SENTRY_DSN_URL_BACKEND=${BACKEND_SENTRY_DSN_URL} \
-    NODE_ENV=production \
-    ENVIRONMENT=production \
-    SERVE_CLIENT_FROM_NEST=true \
-    CLIENT_PATH=/app/client \
-    FRONTEND_URL=${EXTERNAL_URL:-http://localhost:3000} \
-    POSTHOG_HOST=https://app.posthog.com \
-    POSTHOG_KEY=RxdBl8vjdTwic7xTzoKTdbmeSC1PCzV6sw-x-FKSB-k \
-    DATABASE_URL=postgres://postgres:postgres@localhost:5432/laudspeaker \
-    PATH="/home/appuser/.npm-global/bin:$PATH" \
-    NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
-    CLICKHOUSE_DB=default
-
 WORKDIR /app
 
-# Create necessary directories and set up permissions
-RUN mkdir -p /app/packages/server/src /app/migrations /app/client && \
-    # Add non-root user with specific UID/GID
-    adduser --uid 1001 --disabled-password --gecos "" appuser && \
-    # Create and set permissions for npm directories
-    mkdir -p /home/appuser/.npm-global && \
-    mkdir -p /home/appuser/.npm && \
-    chown -R 1001:1001 /home/appuser/.npm-global && \
-    chown -R 1001:1001 /home/appuser/.npm && \
-    chmod -R 775 /home/appuser/.npm-global && \
-    chmod -R 775 /home/appuser/.npm && \
-    # Install global dependencies as appuser
-    su - appuser -c "npm config set prefix '/home/appuser/.npm-global'" && \
-    su - appuser -c "npm install -g clickhouse-migrations typeorm typescript ts-node @types/node" && \
-    # Set proper permissions for app directory
-    chown -R 1001:1001 /app
+# Root operations first
+RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
+    mkdir -p \
+        /app/packages/server/src \
+        /app/migrations \
+        /app/client \
+        /app/node_modules \
+        /home/appuser/.npm-global && \
+    chown -R appuser:appuser /app /home/appuser && \
+    chmod -R 755 /app
 
-# Copy build artifacts and configurations
-COPY --from=frontend /app/packages/client/build ./client
-COPY --from=backend /app/packages/server/dist ./dist
-COPY --from=backend /app/packages/server/node_modules ./node_modules
-COPY --from=backend /app/packages/server/src/data-source.ts ./packages/server/src/
-COPY --from=frontend /app/SENTRY_RELEASE ./SENTRY_RELEASE
-COPY scripts ./scripts
-COPY packages/server/migrations/* ./migrations/
-COPY docker-entrypoint.sh ./
+# Copy files
+COPY --chown=appuser:appuser docker-entrypoint.sh ./
+RUN chmod +x docker-entrypoint.sh
 
-# Set permissions for entrypoint and other files
-RUN chmod +x docker-entrypoint.sh && \
-    chown -R 1001:1001 /app && \
-    # Explicitly set permissions for migrations directory
-    chmod -R 755 /app/migrations && \
-    # Create symlink for clickhouse-migrations
-    ln -s /home/appuser/.npm-global/bin/clickhouse-migrations /usr/local/bin/clickhouse-migrations && \
-    # Clear npm cache and set permissions again
-    npm cache clean --force && \
-    rm -rf /home/appuser/.npm/* && \
-    mkdir -p /home/appuser/.npm && \
-    chown -R 1001:1001 /home/appuser/.npm && \
-    chmod -R 775 /home/appuser/.npm
+# Create migration loader
+RUN echo $'const { DataSource } = require("typeorm");\n\
+const path = require("path");\n\
+\n\
+const AppDataSource = new DataSource({\n\
+  type: "postgres",\n\
+  host: process.env.DB_HOST || "localhost",\n\
+  port: parseInt(process.env.DB_PORT) || 5432,\n\
+  username: process.env.DB_USER || "postgres",\n\
+  password: process.env.DB_PASSWORD || "postgres",\n\
+  database: process.env.DB_NAME || "laudspeaker",\n\
+  entities: [path.join(__dirname, "dist/**/*.entity.js")],\n\
+  migrations: [path.join(__dirname, "migrations/*.js")],\n\
+  synchronize: false\n\
+});\n\
+\n\
+module.exports = AppDataSource;' > /app/typeorm.config.js
 
-# Switch to non-root user
+# Create TypeORM config as a single command
+RUN echo "module.exports = { \
+  type: 'postgres', \
+  host: process.env.DB_HOST || 'localhost', \
+  port: parseInt(process.env.DB_PORT) || 5432, \
+  username: process.env.DB_USER || 'postgres', \
+  password: process.env.DB_PASSWORD || 'postgres', \
+  database: process.env.DB_NAME || 'laudspeaker', \
+  entities: ['dist/**/*.entity.js'], \
+  migrations: ['migrations/*.js'], \
+  synchronize: false \
+};" > /app/typeorm.config.js && \
+chown appuser:appuser /app/typeorm.config.js
+
+# Create default SENTRY_RELEASE
+RUN echo "development" > /app/SENTRY_RELEASE && \
+    chown appuser:appuser /app/SENTRY_RELEASE
+
+# Copy configuration and artifacts
+COPY --chown=appuser:appuser --from=base /app/package*.json ./
+COPY --chown=appuser:appuser --from=base /app/packages/server/package*.json ./packages/server/
+COPY --chown=appuser:appuser --from=frontend /app/packages/client/build ./client/
+COPY --chown=appuser:appuser --from=backend /app/packages/server/dist ./dist/
+COPY --chown=appuser:appuser --from=backend /app/packages/server/node_modules ./node_modules/
+COPY --chown=appuser:appuser --from=backend /app/packages/server/src/data-source.ts ./packages/server/src/
+COPY --chown=appuser:appuser scripts ./scripts/
+COPY --chown=appuser:appuser packages/server/migrations/* ./migrations/
+
 USER appuser
 
-# Pre-create the npm cache directory with correct permissions
-RUN mkdir -p /home/appuser/.npm && \
-    npm config set cache /home/appuser/.npm --global
+ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
+    NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
+    NODE_ENV=production \
+    TYPEORM_CONFIG=/app/typeorm.config.js
 
-# Verify PATH and installations
-RUN echo "PATH=$PATH" && \
-    which clickhouse-migrations && \
-    which typeorm && \
-    which ts-node
+RUN npm config set prefix '/home/appuser/.npm-global' && \
+    npm install -g typescript@4.9.5 tslib@2.6.2 ts-node@10.9.1 typeorm@0.3.17 clickhouse-migrations@1.0.0 @types/node@18.18.0
 
-# Configure container
 EXPOSE 80
-ENTRYPOINT ["./docker-entrypoint.sh"]
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
+
+ENTRYPOINT ["./docker-entrypoint.sh"]
