@@ -135,7 +135,7 @@ RUN chmod +x docker-entrypoint.sh
 
 # Install TypeORM and required dependencies locally
 COPY --chown=appuser:appuser package*.json ./
-RUN npm install \
+RUN npm install --legacy-peer-deps \
     # Core dependencies
     typeorm@0.3.17 \
     pg@8.11.3 \
@@ -143,13 +143,13 @@ RUN npm install \
     class-validator@0.14.0 \
     uid@2.0.2 \
     iterare@1.2.1 \
-    # NestJS dependencies
-    @nestjs/websockets@10.0.0 \
-    @nestjs/platform-socket.io@10.0.0 \
-    @nestjs/platform-express@10.0.0 \
-    @nestjs/common@10.0.0 \
-    @nestjs/core@10.0.0 \
-    @nestjs/config@3.1.1 \
+    # NestJS dependencies (all version 9.x)
+    @nestjs/websockets@9.4.0 \
+    @nestjs/platform-socket.io@9.4.0 \
+    @nestjs/platform-express@9.0.0 \
+    @nestjs/common@9.0.0 \
+    @nestjs/core@9.0.0 \
+    @nestjs/config@2.3.0 \
     @nestjs/typeorm@9.0.1 \
     # Additional utilities
     socket.io@4.7.2 \
