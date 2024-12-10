@@ -152,6 +152,7 @@ RUN npm install --legacy-peer-deps \
     @nestjs/config@2.3.0 \
     @nestjs/typeorm@9.0.1 \
     @nestjs/jwt@9.0.0 \
+    @nestjs/passport@9.0.3 \
     # Additional utilities
     socket.io@4.7.2 \
     reflect-metadata@0.1.13 \
