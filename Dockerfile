@@ -141,6 +141,7 @@ RUN npm install --legacy-peer-deps \
     pg@8.11.3 \
     class-transformer@0.5.1 \
     class-validator@0.14.0 \
+    class-sanitizer@1.0.1 \
     uid@2.0.2 \
     iterare@1.2.1 \
     # NestJS dependencies (all version 9.x)
