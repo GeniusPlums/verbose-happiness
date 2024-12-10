@@ -144,6 +144,7 @@ RUN npm install --legacy-peer-deps \
     class-sanitizer@1.0.1 \
     uid@2.0.2 \
     iterare@1.2.1 \
+    bcryptjs@2.4.3 \
     # NestJS dependencies (all version 9.x)
     @nestjs/websockets@9.4.0 \
     @nestjs/platform-socket.io@9.4.0 \
