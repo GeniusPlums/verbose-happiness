@@ -160,7 +160,9 @@ RUN npm install --legacy-peer-deps \
     socket.io@4.7.2 \
     reflect-metadata@0.1.13 \
     rxjs@7.8.1 \
-    cache-manager@5.2.4
+    cache-manager@5.2.4 \
+    nest-winston@1.9.4 \
+    winston@3.11.0
 
 # Create TypeORM config with proper DataSource instance
 RUN echo "const { DataSource } = require('typeorm');\n\
