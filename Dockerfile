@@ -136,32 +136,26 @@ RUN chmod +x docker-entrypoint.sh
 # Install TypeORM and required dependencies locally
 COPY --chown=appuser:appuser package*.json ./
 RUN npm install \
-   # Core dependencies
-   typeorm@0.3.17 \
-   pg@8.11.3 \
-   class-transformer@0.5.1 \
-   class-validator@0.14.0 \
-   uid@2.0.2 \
-   iterare@1.2.1 \
-   # NestJS dependencies
-   @nestjs/websockets@10.0.0 \
-   @nestjs/platform-socket.io@10.0.0 \
-   @nestjs/platform-express@10.0.0 \
-   @nestjs/common@10.0.0 \
-   @nestjs/core@10.0.0 \
-   @nestjs/config@3.1.1 \
-   # Additional utilities
-   socket.io@4.7.2 \
-   reflect-metadata@0.1.13 \
-   rxjs@7.8.1 \
-   cache-manager@5.2.4 \
-   passport@0.6.0 \
-   passport-jwt@4.0.1 \
-   passport-local@1.0.0 \
-   @types/passport-jwt@3.0.13 \
-   @types/passport-local@1.0.38 \
-   bcrypt@5.1.1 \
-   @types/bcrypt@5.0.2
+    # Core dependencies
+    typeorm@0.3.17 \
+    pg@8.11.3 \
+    class-transformer@0.5.1 \
+    class-validator@0.14.0 \
+    uid@2.0.2 \
+    iterare@1.2.1 \
+    # NestJS dependencies
+    @nestjs/websockets@10.0.0 \
+    @nestjs/platform-socket.io@10.0.0 \
+    @nestjs/platform-express@10.0.0 \
+    @nestjs/common@10.0.0 \
+    @nestjs/core@10.0.0 \
+    @nestjs/config@3.1.1 \
+    @nestjs/typeorm@9.0.1 \
+    # Additional utilities
+    socket.io@4.7.2 \
+    reflect-metadata@0.1.13 \
+    rxjs@7.8.1 \
+    cache-manager@5.2.4
 
 # Create TypeORM config with proper DataSource instance
 RUN echo "const { DataSource } = require('typeorm');\n\
