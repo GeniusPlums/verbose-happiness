@@ -136,7 +136,7 @@ RUN chmod +x docker-entrypoint.sh
 
 # Install TypeORM and required dependencies locally
 COPY --chown=appuser:appuser package*.json ./
-RUN npm install typeorm@0.3.17 pg@8.11.3 class-transformer@0.5.1 class-validator@0.14.0
+RUN npm install typeorm@0.3.17 pg@8.11.3 class-transformer@0.5.1 class-validator@0.14.0 uid@2.0.2
 
 # Create TypeORM config with proper DataSource instance
 RUN echo "const { DataSource } = require('typeorm');\n\
@@ -188,7 +188,8 @@ ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
 # Install global packages
 RUN npm config set prefix '/home/appuser/.npm-global' && \
     npm install -g typescript@4.9.5 tslib@2.6.2 ts-node@10.9.1 typeorm@0.3.17 \
-    clickhouse-migrations@1.0.0 @types/node@18.18.0 class-transformer@0.5.1 class-validator@0.14.0
+    clickhouse-migrations@1.0.0 @types/node@18.18.0 class-transformer@0.5.1 \
+    class-validator@0.14.0 uid@2.0.2
 
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
