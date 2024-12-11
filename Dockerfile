@@ -139,6 +139,7 @@ RUN npm install --legacy-peer-deps \
     # Core dependencies
     typeorm@0.3.17 \
     pg@8.11.3 \
+    pg-copy-streams@6.0.6 \
     class-transformer@0.5.1 \
     class-validator@0.14.0 \
     class-sanitizer@1.0.1 \
