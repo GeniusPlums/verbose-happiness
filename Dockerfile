@@ -165,6 +165,7 @@ RUN npm install --legacy-peer-deps \
     posthog-node@3.1.3 \
     nodemailer@6.9.7 \
     undici@5.0.0 \
+    aws-sdk@2.1502.0 \
     # NestJS dependencies (all version 9.x)
     @nestjs/websockets@9.4.0 \
     @nestjs/platform-socket.io@9.4.0 \
