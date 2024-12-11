@@ -151,6 +151,7 @@ RUN npm install --legacy-peer-deps \
     @slack/oauth@2.6.1 \
     amqplib@0.10.3 \
     bullmq@4.12.4 \
+    mailgun.js@9.3.0 \
     # NestJS dependencies (all version 9.x)
     @nestjs/websockets@9.4.0 \
     @nestjs/platform-socket.io@9.4.0 \
