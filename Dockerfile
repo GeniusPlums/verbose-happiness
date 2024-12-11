@@ -148,6 +148,7 @@ RUN npm install --legacy-peer-deps \
     mongoose@7.6.3 \
     tst-reflect@0.7.4 \
     csv-parse@5.5.0 \
+    @slack/oauth@2.6.1 \
     # NestJS dependencies (all version 9.x)
     @nestjs/websockets@9.4.0 \
     @nestjs/platform-socket.io@9.4.0 \
