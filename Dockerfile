@@ -153,6 +153,7 @@ RUN npm install --legacy-peer-deps \
     bullmq@4.12.4 \
     mailgun.js@9.3.0 \
     liquidjs@10.9.2 \
+    @sendgrid/mail@7.7.0 \
     # NestJS dependencies (all version 9.x)
     @nestjs/websockets@9.4.0 \
     @nestjs/platform-socket.io@9.4.0 \
