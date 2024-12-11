@@ -162,6 +162,7 @@ RUN npm install --legacy-peer-deps \
     firebase-admin@11.11.0 \
     stripe@14.8.0 \
     twilio@4.19.0 \
+    posthog-node@3.1.3 \
     # NestJS dependencies (all version 9.x)
     @nestjs/websockets@9.4.0 \
     @nestjs/platform-socket.io@9.4.0 \
