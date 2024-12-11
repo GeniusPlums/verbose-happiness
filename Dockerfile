@@ -171,6 +171,7 @@ RUN npm install --legacy-peer-deps \
     @nestjs/passport@9.0.3 \
     @nestjs/mongoose@9.2.2 \
     @nestjs/bullmq@10.0.1 \
+    @nestjs/cache-manager@2.1.1 \
     passport@0.6.0 \
     # Additional utilities
     socket.io@4.7.2 \
