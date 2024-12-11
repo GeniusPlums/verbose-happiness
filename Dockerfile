@@ -147,6 +147,7 @@ RUN npm install --legacy-peer-deps \
     bcryptjs@2.4.3 \
     mongoose@7.6.3 \
     tst-reflect@0.7.4 \
+    csv-parse@5.5.0 \
     # NestJS dependencies (all version 9.x)
     @nestjs/websockets@9.4.0 \
     @nestjs/platform-socket.io@9.4.0 \
