@@ -156,6 +156,7 @@ RUN npm install --legacy-peer-deps \
     @sendgrid/mail@7.7.0 \
     @sendgrid/eventwebhook@7.7.0 \
     svix@0.85.1 \
+    @sentry/node@7.80.1 \
     # NestJS dependencies (all version 9.x)
     @nestjs/websockets@9.4.0 \
     @nestjs/platform-socket.io@9.4.0 \
