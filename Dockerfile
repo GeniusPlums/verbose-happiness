@@ -197,7 +197,23 @@ RUN npm install --legacy-peer-deps \
     p-map@5.5.0 \
     taskforce-connector@1.24.3 \
     concurrently@7.4.0 \
-    foreman@3.0.1
+    foreman@3.0.1 \
+    # Additional server dependencies
+    @databricks/sql@1.0.0 \
+    @golevelup/ts-jest@0.3.7 \
+    @liaoliaots/nestjs-redis@9.0.5 \
+    @nestjs/mapped-types@1.2.2 \
+    @nestjs/schedule@2.1.0 \
+    @nestjs/serve-static@3.0.1 \
+    @sentry/profiling-node@1.2.1 \
+    @sentry/tracing@7.102.1 \
+    @slack/web-api@6.7.2 \
+    sync-fetch@0.4.2 \
+    tr-nestjs-clickhouse@1.1.1 \
+    traverse@0.6.7 \
+    winston-papertrail@1.0.5 \
+    winston-syslog@2.6.0 \
+    @laudspeaker/clickhouse-migrations@1.0.1
 
 # Create TypeORM config with proper DataSource instance
 RUN echo "const { DataSource } = require('typeorm');\n\
