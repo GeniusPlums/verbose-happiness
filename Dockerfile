@@ -249,7 +249,9 @@ RUN npm config set prefix '/home/appuser/.npm-global' && \
     typeorm@0.3.17 \
     @types/node@18.18.0 \
     class-transformer@0.5.1 \
-    class-validator@0.14.0
+    class-validator@0.14.0 \
+    @laudspeaker/clickhouse-migrations@1.0.1 \
+    clickhouse-migrations@latest
 
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
