@@ -50,13 +50,8 @@ if ! curl --max-time 10 --user "${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}" \
 fi
 log "ClickHouse connection successful"
 
-# Try to create the database if it doesn't exist
-log "Ensuring database exists..."
-if ! curl --max-time 10 --user "${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}" \
-    --data-binary "CREATE DATABASE IF NOT EXISTS ${CLICKHOUSE_DB}" \
-    "https://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}" > /dev/null 2>&1; then
-    log "Warning: Could not create database. Continuing with existing database."
-fi
+# Skip database creation and just use the existing database
+log "Using existing database: ${CLICKHOUSE_DB}"
 
 # Run ClickHouse migrations with retries
 log "Running ClickHouse migrations..."
@@ -64,13 +59,14 @@ MAX_RETRIES=3
 RETRY_COUNT=0
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if CLICKHOUSE_DATABASE="${CLICKHOUSE_DB}" clickhouse-migrations migrate \
+    if clickhouse-migrations migrate \
         --host "$CLICKHOUSE_HOST" \
         --port "$CLICKHOUSE_PORT" \
         --user "$CLICKHOUSE_USER" \
         --password "$CLICKHOUSE_PASSWORD" \
         --db "$CLICKHOUSE_DB" \
-        --migrations-home ./migrations; then
+        --migrations-home ./migrations \
+        --skip-create-db; then
         log "ClickHouse migrations completed successfully"
         break
     else
@@ -79,12 +75,17 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
             log "Migration attempt $RETRY_COUNT failed, retrying in 5 seconds..."
             sleep 5
         else
-            log "Error: ClickHouse migrations failed after $MAX_RETRIES attempts"
-            # Continue instead of exit - let's try to start the app anyway
+            log "Warning: ClickHouse migrations failed after $MAX_RETRIES attempts. Continuing..."
             break
         fi
     fi
 done
+
+# Verify typeorm config exists
+if [ ! -f "/app/typeorm.config.cjs" ]; then
+    log "Error: TypeORM config file not found at /app/typeorm.config.cjs"
+    exit 1
+fi
 
 # Run TypeORM migrations
 log "Running TypeORM migrations..."
