@@ -37,19 +37,17 @@ log "Checking required environment variables..."
 : "${CLICKHOUSE_HOST:=ckai3ao0ad.ap-south-1.aws.clickhouse.cloud}"
 : "${CLICKHOUSE_PORT:=8443}"
 : "${CLICKHOUSE_USER:=default}"
-: "${CLICKHOUSE_DB:=laudspeaker}"  # Changed default database name
+: "${CLICKHOUSE_DB:=laudspeaker}"
+: "${CLICKHOUSE_PASSWORD:=fFc.5FoDUOZZQ}"
 
-if [ -z "${CLICKHOUSE_PASSWORD}" ]; then
-    log "Error: CLICKHOUSE_PASSWORD environment variable must be set"
-    exit 1
-fi
-
-# Test ClickHouse connection before running migrations
 log "Testing ClickHouse connection..."
-if ! curl -k -s "https://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}" >/dev/null; then
-    log "Error: Cannot connect to ClickHouse server"
+if ! curl --max-time 10 --user "${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}" \
+    --data-binary 'SELECT 1' \
+    "https://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}" > /dev/null 2>&1; then
+    log "Error: Cannot connect to ClickHouse server. Check credentials and connectivity."
     exit 1
 fi
+log "ClickHouse connection successful"
 
 # Run ClickHouse migrations with retries
 log "Running ClickHouse migrations..."
