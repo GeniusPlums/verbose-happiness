@@ -81,8 +81,12 @@ ENV SENTRY_PROJECT=${BACKEND_SENTRY_PROJECT}
 WORKDIR /app
 COPY --from=frontend_build /app/packages/client/package.json /app/
 COPY ./packages/server/package.json /app
-RUN npm install --legacy-peer-deps && \
-    npm install --save @good-ghosting/random-name-generator@2.0.1 @js-temporal/polyfill@0.4.4
+RUN npm install --legacy-peer-deps --force && \
+    npm install --save --legacy-peer-deps --force \
+    @good-ghosting/random-name-generator@2.0.1 \
+    @js-temporal/polyfill@0.4.4 \
+    @nestjs/common@9.4.3 \
+    @liaoliaots/nestjs-redis@9.0.5
 COPY . /app
 RUN npm run build:server
 # Basically an if else but more readable in two lines
