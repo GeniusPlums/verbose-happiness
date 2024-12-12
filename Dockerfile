@@ -150,6 +150,7 @@ RUN npm install --legacy-peer-deps \
     mongoose@7.6.3 \
     tst-reflect@0.7.4 \
     csv-parse@5.5.0 \
+    fast-csv@4.3.6 \
     @slack/oauth@2.6.1 \
     amqplib@0.10.3 \
     bullmq@4.12.4 \
