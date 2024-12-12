@@ -153,7 +153,7 @@ RUN npm install --legacy-peer-deps \
     fast-csv@4.3.6 \
     @dagrejs/graphlib@2.1.13 \
     @js-temporal/polyfill@0.4.4 \
-    @good-ghosting/random-name-generator@2.0.0 \
+    @good-ghosting/random-name-generator@1.0.3 \
     @slack/oauth@2.6.1 \
     amqplib@0.10.3 \
     bullmq@4.12.4 \
@@ -190,7 +190,14 @@ RUN npm install --legacy-peer-deps \
     rxjs@7.8.1 \
     cache-manager@5.2.4 \
     nest-winston@1.9.4 \
-    winston@3.11.0
+    winston@3.11.0 \
+    # Additional required dependencies from package.json
+    logform@2.4.2 \
+    luxon@3.2.1 \
+    p-map@5.5.0 \
+    taskforce-connector@1.24.3 \
+    concurrently@7.4.0 \
+    foreman@3.0.1
 
 # Create TypeORM config with proper DataSource instance
 RUN echo "const { DataSource } = require('typeorm');\n\
