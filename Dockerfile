@@ -116,6 +116,35 @@ RUN apt-get update && \
     chown -R appuser:appuser /app /home/appuser && \
     chmod -R 755 /app
 
+# Create TypeORM config file
+RUN echo "const { DataSource } = require('typeorm');\n\
+const path = require('path');\n\
+\n\
+const dataSource = new DataSource({\n\
+  type: 'postgres',\n\
+  host: process.env.DB_HOST,\n\
+  port: parseInt(process.env.DB_PORT || '5432'),\n\
+  username: process.env.DB_USER,\n\
+  password: process.env.DB_PASSWORD,\n\
+  database: process.env.DB_NAME,\n\
+  entities: [path.join(__dirname, 'dist/**/*.entity.{js,ts}')],\n\
+  migrations: [path.join(__dirname, 'migrations/*.{js,ts}')],\n\
+  migrationsTableName: 'migrations',\n\
+  migrationsRun: true,\n\
+  logging: process.env.NODE_ENV === 'production' \n\
+    ? ['error', 'warn']  // Production logging\n\
+    : ['query', 'error', 'warn'],  // Development logging\n\
+  synchronize: false,\n\
+  ssl: process.env.DB_SSL === 'true' ? {\n\
+    rejectUnauthorized: false\n\
+  } : false\n\
+});\n\
+\n\
+module.exports = dataSource;\n\
+module.exports.default = dataSource;" > /app/typeorm.config.cjs && \
+    chown appuser:appuser /app/typeorm.config.cjs && \
+    chmod 644 /app/typeorm.config.cjs
+
 # Copy files and configs first
 COPY --chown=appuser:appuser docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
