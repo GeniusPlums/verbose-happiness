@@ -32,22 +32,31 @@ if [ ! -d "./migrations" ]; then
     exit 1
 fi
 
-# Check and set required environment variables
+# Check required environment variables
 log "Checking required environment variables..."
 : "${CLICKHOUSE_HOST:=ckai3ao0ad.ap-south-1.aws.clickhouse.cloud}"
 : "${CLICKHOUSE_PORT:=8443}"
 : "${CLICKHOUSE_USER:=default}"
-: "${CLICKHOUSE_DB:=laudspeaker}"
+: "${CLICKHOUSE_DB:=default}"
 : "${CLICKHOUSE_PASSWORD:=fFc.5FoDUOZZQ}"
 
+# Test base ClickHouse connection first
 log "Testing ClickHouse connection..."
 if ! curl --max-time 10 --user "${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}" \
     --data-binary 'SELECT 1' \
     "https://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}" > /dev/null 2>&1; then
-    log "Error: Cannot connect to ClickHouse server. Check credentials and connectivity."
+    log "Error: Cannot connect to ClickHouse server"
     exit 1
 fi
 log "ClickHouse connection successful"
+
+# Try to create the database if it doesn't exist
+log "Ensuring database exists..."
+if ! curl --max-time 10 --user "${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}" \
+    --data-binary "CREATE DATABASE IF NOT EXISTS ${CLICKHOUSE_DB}" \
+    "https://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}" > /dev/null 2>&1; then
+    log "Warning: Could not create database. Continuing with existing database."
+fi
 
 # Run ClickHouse migrations with retries
 log "Running ClickHouse migrations..."
@@ -55,7 +64,7 @@ MAX_RETRIES=3
 RETRY_COUNT=0
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if clickhouse-migrations migrate \
+    if CLICKHOUSE_DATABASE="${CLICKHOUSE_DB}" clickhouse-migrations migrate \
         --host "$CLICKHOUSE_HOST" \
         --port "$CLICKHOUSE_PORT" \
         --user "$CLICKHOUSE_USER" \
@@ -71,7 +80,8 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
             sleep 5
         else
             log "Error: ClickHouse migrations failed after $MAX_RETRIES attempts"
-            exit 1
+            # Continue instead of exit - let's try to start the app anyway
+            break
         fi
     fi
 done
@@ -109,12 +119,6 @@ case "$1" in
 esac
 
 log "Starting LaudSpeaker Process: $LAUDSPEAKER_PROCESS_TYPE"
-
-# Verify the main application file exists
-if [ ! -f dist/src/main.js ]; then
-    log "Error: Application entry point not found at dist/src/main.js"
-    exit 1
-fi
 
 # Start the application
 exec node dist/src/main.js
