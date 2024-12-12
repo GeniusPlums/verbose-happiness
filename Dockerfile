@@ -255,7 +255,49 @@ RUN npm install --legacy-peer-deps \
     svix@^1.15.0 \
     sync-fetch@^0.4.2 \
     traverse@0.6.7 \
-    undici@^5.21.0
+    undici@^5.21.0 \
+
+    # UI and React Dependencies
+    @emotion/react@11.9.3 \
+    @emotion/styled@11.9.3 \
+    @good-ghosting/random-name-generator@^1.0.3 \
+    @headlessui/react@^1.7.3 \
+    @heroicons/react@^2.0.12 \
+    @lottiefiles/react-lottie-player@^3.5.3 \
+    @material-tailwind/react@^1.2.4 \
+    @mui/icons-material@^5.8.4 \
+    @mui/lab@^5.0.0-alpha.89 \
+    @mui/material@5.11.0 \
+    @pmmmwh/react-refresh-webpack-plugin@^0.5.3 \
+    @react-oauth/google@^0.2.6 \
+    @reduxjs/toolkit@^1.9.5 \
+    @sentry/react@^7.73.0 \
+    antd@^5.14.2 \
+    grapesjs@^0.19.5 \
+    react@^18.2.0 \
+    react-dom@18.2.0 \
+    react-router-dom@6.3.0 \
+    reactflow@^11.5.6 \
+    redux@4.2.0 \
+
+    # Development Dependencies
+    @4tw/cypress-drag-drop@^2.2.1 \
+    @nestjs/schematics@^9.0.0 \
+    @types/cron@^2.0.0 \
+    @types/express@^4.17.13 \
+    @types/jest@27.5.2 \
+    @types/lodash@^4.14.184 \
+    @typescript-eslint/eslint-plugin@^5.39.0 \
+    @typescript-eslint/parser@^5.39.0 \
+    cypress@12.9.0 \
+    dotenv@16.0.3 \
+    eslint@^8.24.0 \
+    prettier@^2.7.1 \
+
+    # Additional Dependencies
+    @databricks/sql@1.0.0 \
+    @sendgrid/client@^7.7.0 \
+    rimraf@^3.0.2
 
 # Create TypeORM config
 COPY --chown=appuser:appuser --from=backend /app/packages/server/dist ./dist/
