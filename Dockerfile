@@ -2,7 +2,7 @@
 # To run: docker run -it -p 80:80 --env-file packages/server/.env --rm laudspeaker/laudspeaker:latest
 
 # Base stage for shared dependencies
-FROM node:18-slim AS base
+FROM node:16 AS base
 WORKDIR /app
 COPY package*.json ./
 COPY packages/client/package*.json ./packages/client/
@@ -12,7 +12,7 @@ COPY packages/server/package*.json ./packages/server/
 RUN ls -la /app/package.json || echo "No package.json in base"
 
 # Frontend build stage
-FROM node:18-slim AS frontend
+FROM node:16 AS frontend_build
 ARG EXTERNAL_URL
 ARG FRONTEND_SENTRY_AUTH_TOKEN
 ARG FRONTEND_SENTRY_ORG=laudspeaker-rb
@@ -71,190 +71,59 @@ RUN cd packages/client && \
    fi
 
 # Backend build stage
-FROM node:18-slim AS backend
+FROM node:16 AS backend_build
+ARG BACKEND_SENTRY_AUTH_TOKEN
+ARG BACKEND_SENTRY_ORG=laudspeaker-rb
+ARG BACKEND_SENTRY_PROJECT=node
+ENV SENTRY_AUTH_TOKEN=${BACKEND_SENTRY_AUTH_TOKEN}
+ENV SENTRY_ORG=${BACKEND_SENTRY_ORG}
+ENV SENTRY_PROJECT=${BACKEND_SENTRY_PROJECT}
 WORKDIR /app
+COPY --from=frontend_build /app/packages/client/package.json /app/
+COPY ./packages/server/package.json /app
+RUN npm install --legacy-peer-deps && \
+    npm install --save @good-ghosting/random-name-generator@2.0.1 @js-temporal/polyfill@0.4.4
+COPY . /app
+RUN npm run build:server
+# Basically an if else but more readable in two lines
+RUN if [ -z "$BACKEND_SENTRY_AUTH_TOKEN" ] ; then echo "Not building sourcemaps, BACKEND_SENTRY_AUTH_TOKEN not provided" ; fi
+RUN if [ ! -z "$BACKEND_SENTRY_AUTH_TOKEN" ] ; then npm run build:server:sourcemaps ; fi
 
-# Create TypeScript declarations first
-RUN mkdir -p /app/packages/server/src/@types && \
-   echo 'import { User } from "../entities/user.entity";\n\
-\n\
-declare global {\n\
- namespace Express {\n\
-   interface Request {\n\
-     user?: User;\n\
-   }\n\
-   interface User extends User {}\n\
- }\n\
-}' > /app/packages/server/src/@types/express.d.ts
-
-# Copy base files including package.json
-COPY --from=base /app ./
-COPY package*.json ./
-COPY packages/server/package*.json ./packages/server/
-
-# Copy server source
-COPY packages/server ./packages/server
-
-# Verify files exist
-RUN ls -la /app/package.json && \
-   ls -la /app/packages/server/package.json && \
-   ls -la /app/packages/server/src/@types/express.d.ts
-
-# Install dependencies and build
-RUN cd packages/server && \
-   npm ci && \
-   npm run build
-
-# Verify build artifacts
-RUN ls -la /app/packages/server/dist
-
-# Copy Sentry release file from frontend build
-COPY --from=frontend /app/SENTRY_RELEASE ./SENTRY_RELEASE
-
-# Debug: Check if package.json exists in backend stage
-RUN ls -la /app/package.json || echo "No package.json in backend"
+RUN ./node_modules/.bin/sentry-cli releases propose-version > /app/SENTRY_RELEASE
 
 # Final stage
-FROM node:18-slim AS final
+FROM node:16 AS final
+# Env vars
+ARG BACKEND_SENTRY_DSN_URL=https://15c7f142467b67973258e7cfaf814500@o4506038702964736.ingest.sentry.io/4506040630640640
+ENV SENTRY_DSN_URL_BACKEND=${BACKEND_SENTRY_DSN_URL}
+ENV NODE_ENV=production
+ENV ENVIRONMENT=production
+ENV SERVE_CLIENT_FROM_NEST=true
+ENV CLIENT_PATH=/app/client
+ENV PATH /app/node_modules/.bin:$PATH
+ENV FRONTEND_URL=${EXTERNAL_URL}
+ENV POSTHOG_HOST=https://app.posthog.com
+ENV POSTHOG_KEY=RxdBl8vjdTwic7xTzoKTdbmeSC1PCzV6sw-x-FKSB-k
+
+# Setting working directory
 WORKDIR /app
 
-# Root operations first
-RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
-   mkdir -p \
-       /app/packages/server/src \
-       /app/migrations \
-       /app/client \
-       /app/node_modules \
-       /home/appuser/.npm-global && \
-   chown -R appuser:appuser /app /home/appuser && \
-   chmod -R 755 /app
+#Copy package.json from server over
+COPY ./packages/server/package.json /app
 
-# Copy files and configs first
-COPY --chown=appuser:appuser docker-entrypoint.sh ./
-RUN chmod +x docker-entrypoint.sh
+#Copy over all app files
+COPY --from=frontend_build /app/packages/client/build /app/client
+COPY --from=backend_build /app/packages/server/dist /app/dist
+COPY --from=backend_build /app/node_modules /app/node_modules
+COPY --from=backend_build /app/packages /app/packages
+COPY --from=backend_build /app/SENTRY_RELEASE /app/
+COPY ./scripts /app/scripts/
 
-# Install TypeORM and required dependencies locally
-COPY --chown=appuser:appuser package*.json ./
-RUN npm install --legacy-peer-deps \
-    # Core dependencies
-    typeorm@0.3.17 \
-    pg@8.11.3 \
-    pg-copy-streams@6.0.6 \
-    @clickhouse/client@0.2.10 \
-    class-transformer@0.5.1 \
-    class-validator@0.14.0 \
-    class-sanitizer@1.0.1 \
-    uid@2.0.2 \
-    iterare@1.2.1 \
-    bcryptjs@2.4.3 \
-    mongoose@7.6.3 \
-    tst-reflect@0.7.4 \
-    csv-parse@5.5.0 \
-    fast-csv@4.3.6 \
-    @dagrejs/graphlib@2.1.13 \
-    @js-temporal/polyfill@0.4.4 \
-    @good-ghosting/random-name-generator@2.0.0 \
-    @slack/oauth@2.6.1 \
-    amqplib@0.10.3 \
-    bullmq@4.12.4 \
-    mailgun.js@9.3.0 \
-    liquidjs@10.9.2 \
-    @sendgrid/mail@7.7.0 \
-    @sendgrid/eventwebhook@7.7.0 \
-    svix@0.85.1 \
-    @sentry/node@7.80.1 \
-    firebase-admin@11.11.0 \
-    stripe@14.8.0 \
-    twilio@4.19.0 \
-    posthog-node@3.1.3 \
-    nodemailer@6.9.7 \
-    undici@5.0.0 \
-    aws-sdk@2.1502.0 \
-    # NestJS dependencies (all version 9.x)
-    @nestjs/websockets@9.4.0 \
-    @nestjs/platform-socket.io@9.4.0 \
-    @nestjs/platform-express@9.0.0 \
-    @nestjs/common@9.0.0 \
-    @nestjs/core@9.0.0 \
-    @nestjs/config@2.3.0 \
-    @nestjs/typeorm@9.0.1 \
-    @nestjs/jwt@9.0.0 \
-    @nestjs/passport@9.0.3 \
-    @nestjs/mongoose@9.2.2 \
-    @nestjs/bullmq@10.0.1 \
-    @nestjs/cache-manager@2.1.1 \
-    passport@0.6.0 \
-    # Additional utilities
-    socket.io@4.7.2 \
-    reflect-metadata@0.1.13 \
-    rxjs@7.8.1 \
-    cache-manager@5.2.4 \
-    nest-winston@1.9.4 \
-    winston@3.11.0
-
-# Create TypeORM config with proper DataSource instance
-RUN echo "const { DataSource } = require('typeorm');\n\
-const path = require('path');\n\
-\n\
-const dataSource = new DataSource({\n\
- type: 'postgres',\n\
- host: process.env.DB_HOST,\n\
- port: parseInt(process.env.DB_PORT || '5432'),\n\
- username: process.env.DB_USER,\n\
- password: process.env.DB_PASSWORD,\n\
- database: process.env.DB_NAME,\n\
- entities: [path.join(__dirname, 'dist/**/*.entity.{js,ts}')],\n\
- migrations: [path.join(__dirname, 'migrations/*.{js,ts}')],\n\
- migrationsTableName: 'migrations',\n\
- migrationsRun: true,\n\
- logging: process.env.NODE_ENV === 'production' \n\
-   ? ['error', 'warn']  // Production logging\n\
-   : ['query', 'error', 'warn'],  // Development logging\n\
- synchronize: false,\n\
- ssl: process.env.DB_SSL === 'true' ? {\n\
-   rejectUnauthorized: false\n\
- } : false\n\
-});\n\
-\n\
-module.exports = dataSource;\n\
-module.exports.default = dataSource;" > /app/typeorm.config.cjs && \
-   chown appuser:appuser /app/typeorm.config.cjs && \
-   chmod 644 /app/typeorm.config.cjs
-
-# Copy artifacts in correct order
-COPY --chown=appuser:appuser --from=base /app/package*.json ./
-COPY --chown=appuser:appuser --from=base /app/packages/server/package*.json ./packages/server/
-COPY --chown=appuser:appuser --from=frontend /app/packages/client/build ./client/
-COPY --chown=appuser:appuser --from=backend /app/packages/server/dist ./dist/
-COPY --chown=appuser:appuser --from=backend /app/packages/server/node_modules ./node_modules/
-COPY --chown=appuser:appuser --from=backend /app/packages/server/src/data-source.ts ./packages/server/src/
-COPY --chown=appuser:appuser scripts ./scripts/
-COPY --chown=appuser:appuser packages/server/migrations/* ./migrations/
-
-USER appuser
-
-ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
-   NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
-   NODE_ENV=production \
-   TYPEORM_CONFIG=/app/typeorm.config.cjs \
-   TS_NODE_PROJECT=tsconfig.json
-
-# Install global packages
-RUN npm config set prefix '/home/appuser/.npm-global' && \
-   npm install -g \
-   typescript@4.9.5 \
-   tslib@2.6.2 \
-   ts-node@10.9.1 \
-   typeorm@0.3.17 \
-   clickhouse-migrations@1.0.0 \
-   @types/node@18.18.0 \
-   class-transformer@0.5.1 \
-   class-validator@0.14.0 \
-   uid@2.0.2 \
-   iterare@1.2.1
-
+#Expose web port
 EXPOSE 80
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-   CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
 
-ENTRYPOINT ["./docker-entrypoint.sh"]
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+
+RUN ["chmod", "+x", "/app/docker-entrypoint.sh"]
+
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
