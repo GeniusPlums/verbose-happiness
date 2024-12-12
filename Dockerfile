@@ -83,7 +83,7 @@ COPY --from=frontend_build /app/packages/client/package.json /app/
 COPY ./packages/server/package.json /app
 RUN npm install --legacy-peer-deps --force && \
     npm install --save --legacy-peer-deps --force \
-    @good-ghosting/random-name-generator@2.0.1 \
+    @good-ghosting/random-name-generator@2.0.0 \
     @js-temporal/polyfill@0.4.4 \
     @nestjs/common@9.4.3 \
     @liaoliaots/nestjs-redis@9.0.5
