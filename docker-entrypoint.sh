@@ -32,29 +32,51 @@ if [ ! -d "./migrations" ]; then
     exit 1
 fi
 
-# Check required environment variables
+# Check and set required environment variables
 log "Checking required environment variables..."
 : "${CLICKHOUSE_HOST:=ckai3ao0ad.ap-south-1.aws.clickhouse.cloud}"
 : "${CLICKHOUSE_PORT:=8443}"
 : "${CLICKHOUSE_USER:=default}"
-: "${CLICKHOUSE_DB:=default}"
+: "${CLICKHOUSE_DB:=laudspeaker}"  # Changed default database name
 
 if [ -z "${CLICKHOUSE_PASSWORD}" ]; then
-    log "Warning: CLICKHOUSE_PASSWORD not set, using default value"
-fi
-
-# Run ClickHouse migrations with better error handling
-log "Running ClickHouse migrations..."
-if ! clickhouse-migrations migrate \
-    --host "$CLICKHOUSE_HOST" \
-    --port "$CLICKHOUSE_PORT" \
-    --user "$CLICKHOUSE_USER" \
-    --password "${CLICKHOUSE_PASSWORD:-~MG~gu62c6lFW}" \
-    --db "$CLICKHOUSE_DB" \
-    --migrations-home ./migrations; then
-    log "Error: ClickHouse migrations failed"
+    log "Error: CLICKHOUSE_PASSWORD environment variable must be set"
     exit 1
 fi
+
+# Test ClickHouse connection before running migrations
+log "Testing ClickHouse connection..."
+if ! curl -k -s "https://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}" >/dev/null; then
+    log "Error: Cannot connect to ClickHouse server"
+    exit 1
+fi
+
+# Run ClickHouse migrations with retries
+log "Running ClickHouse migrations..."
+MAX_RETRIES=3
+RETRY_COUNT=0
+
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    if clickhouse-migrations migrate \
+        --host "$CLICKHOUSE_HOST" \
+        --port "$CLICKHOUSE_PORT" \
+        --user "$CLICKHOUSE_USER" \
+        --password "$CLICKHOUSE_PASSWORD" \
+        --db "$CLICKHOUSE_DB" \
+        --migrations-home ./migrations; then
+        log "ClickHouse migrations completed successfully"
+        break
+    else
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+            log "Migration attempt $RETRY_COUNT failed, retrying in 5 seconds..."
+            sleep 5
+        else
+            log "Error: ClickHouse migrations failed after $MAX_RETRIES attempts"
+            exit 1
+        fi
+    fi
+done
 
 # Run TypeORM migrations
 log "Running TypeORM migrations..."
