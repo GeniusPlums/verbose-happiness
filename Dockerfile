@@ -152,6 +152,61 @@ RUN chmod +x docker-entrypoint.sh
 # Install all dependencies from package.json
 COPY --chown=appuser:appuser package*.json ./
 RUN npm install --legacy-peer-deps \
+    # Development and Build Tools
+    @babel/core@^7.16.0 \
+    @golevelup/ts-jest@^0.3.7 \
+    @svgr/webpack@^5.5.0 \
+    case-sensitive-paths-webpack-plugin@^2.4.0 \
+    env-cmd@^10.1.0 \
+    foreman@^3.0.1 \
+
+    # UI Components and Libraries
+    @tailwindcss/forms@^0.5.3 \
+    @tisoap/react-flow-smart-edge@^3.0.0 \
+    @wojtekmaj/react-daterange-picker@^3.4.0 \
+    ace-builds@^1.15.0 \
+    d3-hierarchy@^3.1.2 \
+    framer-motion@^10.16.4 \
+    keyboardjs@^2.7.0 \
+    react-ace@^10.1.0 \
+    react-confirm-alert@^3.0.6 \
+    react-custom-scrollbars-2@^4.5.0 \
+    react-draggable@^4.4.5 \
+    react-google-recaptcha@^2.1.0 \
+    react-joyride@^2.5.4 \
+    react-lines-ellipsis@^0.15.3 \
+    react-loader-spinner@^5.3.4 \
+    react-markdown@^8.0.6 \
+    react-password-checklist@^1.5.0 \
+    react-popper@^2.3.0 \
+    react-querybuilder@^6.4.1 \
+    react-slider@^2.0.4 \
+    react-social-media-embed@^2.3.4 \
+    react-tagsinput@^3.20.3 \
+    react-use@^17.4.0 \
+    recharts@^2.12.2 \
+    victory@^36.6.3 \
+
+    # Data Processing and Utilities
+    @liaoliaots/nestjs-redis@^9.0.5 \
+    async-dash@^1.0.4 \
+    camelcase@^6.2.1 \
+    dayjs@^1.11.10 \
+    luxon@^3.2.1 \
+    moment-timezone@^0.5.43 \
+    papaparse@^5.4.1 \
+    posthog-js@^1.29.3 \
+    taskforce-connector@^1.24.3 \
+    uuid@^8.3.2 \
+    uuidv4@^6.2.13 \
+
+    # Type Definitions
+    @types/bcryptjs@^2.4.2 \
+    @types/d3-hierarchy@^3.1.2 \
+    @types/papaparse@^5.3.7 \
+    @types/react-color@^3.0.6 \
+    @types/validator@^13.11.7 \
+
     # Add tst-reflect to core dependencies
     tst-reflect@0.7.4 \
     tst-reflect-transformer@0.12.1 \
