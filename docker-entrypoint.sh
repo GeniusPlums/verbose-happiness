@@ -7,11 +7,13 @@ export SENTRY_RELEASE=$(cat SENTRY_RELEASE)
 
 echo "Running clickhouse-migrations"
 clickhouse-migrations migrate \
-    --host "https://ckai3ao0ad.ap-south-1.aws.clickhouse.cloud:8443" \
-    --user default \
-    --password "~MG~gu62c6lFW" \
-    --db ${CLICKHOUSE_DB:-default} \
-    --migrations-home ./migrations
+    --host "${CLICKHOUSE_HOST:-https://ckai3ao0ad.ap-south-1.aws.clickhouse.cloud}" \
+    --port "${CLICKHOUSE_PORT:-8443}" \
+    --user "${CLICKHOUSE_USER:-default}" \
+    --password "${CLICKHOUSE_PASSWORD:-~MG~gu62c6lFW}" \
+    --db "${CLICKHOUSE_DB:-default}" \
+    --migrations-home ./migrations \
+    --ssl
 
 echo "Running Typeorm migrations"
 NODE_OPTIONS="" npx typeorm migration:run -d /app/typeorm.config.cjs
