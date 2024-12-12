@@ -152,6 +152,10 @@ RUN chmod +x docker-entrypoint.sh
 # Install all dependencies from package.json
 COPY --chown=appuser:appuser package*.json ./
 RUN npm install --legacy-peer-deps \
+    # Add tst-reflect to core dependencies
+    tst-reflect@0.7.4 \
+    tst-reflect-transformer@0.12.1 \
+    
     # NestJS Core Dependencies
     @nestjs/common@^10.0.0 \
     @nestjs/config@^2.3.0 \
