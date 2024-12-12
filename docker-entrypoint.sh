@@ -1,36 +1,9 @@
 #!/bin/bash
 
-# Enable error handling
-set -e
-set -o pipefail
-
 # Function for logging
 log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
 }
-
-# Function for error handling
-handle_error() {
-    local exit_code=$?
-    log "An error occurred on line $1 with exit code $exit_code"
-    exit $exit_code
-}
-
-# Set up error handling
-trap 'handle_error $LINENO' ERR
-
-# Ensure SENTRY_RELEASE exists
-if [ ! -f SENTRY_RELEASE ]; then
-    log "Creating default SENTRY_RELEASE file"
-    echo "development" > SENTRY_RELEASE
-fi
-export SENTRY_RELEASE=$(cat SENTRY_RELEASE)
-
-# Verify migrations directory exists
-if [ ! -d "./migrations" ]; then
-    log "Error: migrations directory not found"
-    exit 1
-fi
 
 # Check required environment variables
 log "Checking required environment variables..."
@@ -50,10 +23,9 @@ if ! curl --max-time 10 --user "${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}" \
 fi
 log "ClickHouse connection successful"
 
-# Skip database creation and just use the existing database
 log "Using existing database: ${CLICKHOUSE_DB}"
 
-# Run ClickHouse migrations with retries
+# Run ClickHouse migrations
 log "Running ClickHouse migrations..."
 MAX_RETRIES=3
 RETRY_COUNT=0
@@ -65,8 +37,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         --user "$CLICKHOUSE_USER" \
         --password "$CLICKHOUSE_PASSWORD" \
         --db "$CLICKHOUSE_DB" \
-        --migrations-home ./migrations \
-        --skip-create-db; then
+        --migrations-home ./migrations; then
         log "ClickHouse migrations completed successfully"
         break
     else
@@ -81,12 +52,6 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     fi
 done
 
-# Verify typeorm config exists
-if [ ! -f "/app/typeorm.config.cjs" ]; then
-    log "Error: TypeORM config file not found at /app/typeorm.config.cjs"
-    exit 1
-fi
-
 # Run TypeORM migrations
 log "Running TypeORM migrations..."
 if ! NODE_OPTIONS="" npx typeorm migration:run -d /app/typeorm.config.cjs; then
@@ -94,7 +59,7 @@ if ! NODE_OPTIONS="" npx typeorm migration:run -d /app/typeorm.config.cjs; then
     exit 1
 fi
 
-# Process type handling with validation
+# Process type handling
 log "Setting up process type..."
 case "$1" in
     'web'|'')
