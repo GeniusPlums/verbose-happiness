@@ -102,8 +102,11 @@ RUN cd packages/server && \
 FROM node:18-slim AS final
 WORKDIR /app
 
-# Root operations first
-RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
+# Install curl and create directories
+RUN apt-get update && \
+    apt-get install -y curl && \
+    rm -rf /var/lib/apt/lists/* && \
+    adduser --uid 1001 --disabled-password --gecos "" appuser && \
     mkdir -p \
         /app/packages/server/src \
         /app/migrations \
