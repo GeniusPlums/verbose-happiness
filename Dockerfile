@@ -153,7 +153,7 @@ RUN npm install --legacy-peer-deps \
     fast-csv@4.3.6 \
     @dagrejs/graphlib@2.1.13 \
     @js-temporal/polyfill@0.4.4 \
-    @good-ghosting/random-name-generator@2.1.1 \
+    @good-ghosting/random-name-generator@2.0.0 \
     @slack/oauth@2.6.1 \
     amqplib@0.10.3 \
     bullmq@4.12.4 \
