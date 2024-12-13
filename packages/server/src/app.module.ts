@@ -139,10 +139,13 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
     MongooseModule.forRoot(process.env.MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      ssl: true,
+      ssl: process.env.NODE_ENV === 'production',
       authSource: 'admin',
       retryWrites: true,
-      tls: true,
+      tls: process.env.NODE_ENV === 'production',
+      retryAttempts: 3,
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
     }),
     CacheModule.registerAsync({
       isGlobal: true,
