@@ -156,7 +156,9 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
       ttl: process.env.REDIS_CACHE_TTL ? +process.env.REDIS_CACHE_TTL : 5000,
       url: process.env.REDIS_URL,
       socket: {
-        rejectUnauthorized: false
+        tls: true,
+        rejectUnauthorized: false,
+        servername: process.env.REDIS_HOST
       },
       retryStrategy: (times: number) => {
         if (times > 3) {
