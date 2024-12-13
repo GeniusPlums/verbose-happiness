@@ -150,21 +150,23 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
       tls: true,
     }),
     CacheModule.registerAsync({
-      isGlobal: true,
-      useFactory: async () => ({
-        store: await redisStore({
-          ttl: process.env.REDIS_CACHE_TTL ? +process.env.REDIS_CACHE_TTL : 5000,
-          url: process.env.REDIS_URL.replace('redis://', 'rediss://'),
-          socket: {
-            tls: process.env.NODE_ENV === 'production',
-            rejectUnauthorized: false,
-            servername: process.env.REDIS_HOST,
-            minVersion: 'TLSv1.2',
-            maxVersion: 'TLSv1.3'
-          }
-        }),
-      }),
+  isGlobal: true,
+  useFactory: async () => ({
+    store: await redisStore({
+      ttl: process.env.REDIS_CACHE_TTL ? +process.env.REDIS_CACHE_TTL : 5000,
+      url: process.env.REDIS_URL,
+      tls: {},
+      retryStrategy: (times: number) => {
+        if (times > 3) {
+          throw new Error(`[Redis] Could not connect after ${times} attempts`);
+        }
+        return Math.min(times * 200, 1000);
+      },
+      maxRetriesPerRequest: 3,
+      enableReadyCheck: false
     }),
+  }),
+}),
     QueueModule.forRoot({
       connection: {
         uri: process.env.RMQ_CONNECTION_URI ?? 'amqp://localhost',
