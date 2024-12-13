@@ -136,13 +136,9 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
         }),
       ]
       : []),
-    MongooseModule.forRoot(formatMongoConnectionString(process.env.MONGODB_URI), {
+    MongooseModule.forRoot(process.env.MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      ssl: process.env.NODE_ENV === 'production',
-      authSource: 'admin',
-      retryWrites: true,
-      tls: process.env.NODE_ENV === 'production',
       retryAttempts: 3,
       connectTimeoutMS: 10000,
       socketTimeoutMS: 45000,
@@ -154,10 +150,9 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
           ttl: process.env.REDIS_CACHE_TTL ? +process.env.REDIS_CACHE_TTL : 5000,
           url: process.env.REDIS_URL,
           socket: {
-            tls: process.env.REDIS_TLS === 'true',
-            rejectUnauthorized: false,
-            servername: process.env.REDIS_HOST
-          }
+            tls: process.env.NODE_ENV === 'production'
+          },
+          commandsQueueMaxLength: 10000
         }),
       }),
     }),
