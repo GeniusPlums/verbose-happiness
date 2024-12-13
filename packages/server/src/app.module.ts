@@ -155,7 +155,9 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
     store: await redisStore({
       ttl: process.env.REDIS_CACHE_TTL ? +process.env.REDIS_CACHE_TTL : 5000,
       url: process.env.REDIS_URL,
-      tls: {},
+      socket: {
+        rejectUnauthorized: false
+      },
       retryStrategy: (times: number) => {
         if (times > 3) {
           throw new Error(`[Redis] Could not connect after ${times} attempts`);
