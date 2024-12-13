@@ -159,8 +159,7 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
         tls: true,
         rejectUnauthorized: false,
         servername: process.env.REDIS_HOST
-      },
-      reconnectStrategy: (retries: number) => Math.min(retries * 50, 1000)
+      }
     }),
   }),
 }),
