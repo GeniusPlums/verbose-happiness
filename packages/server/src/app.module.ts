@@ -55,15 +55,7 @@ import { QueueModule } from '@/common/services/queue/queue.module';
 import { ClickHouseModule } from '@/common/services/clickhouse/clickhouse.module';
 import { ChannelsModule } from './api/channels/channels.module';
 
-const sensitiveKeys = [
-  /cookie/i,
-  /passw(or)?d/i,
-  /^pw$/,
-  /^pass$/i,
-  /secret/i,
-  /token/i,
-  /api[-._]?key/i,
-];
+const sensitiveKeys = [/cookie/i, /passw(or)?d/i, /^pw$/i, /^pass$/i, /secret/i, /token/i, /api[-._]?key/i];
 
 function isSensitiveKey(keyStr) {
   if (keyStr) {
@@ -136,8 +128,9 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
       useNewUrlParser: true,
       useUnifiedTopology: true,
       ssl: true,
-      replicaSet: 'atlas-zgz4yq-shard-0',
       authSource: 'admin',
+      retryWrites: true,
+      tls: true
     }),
     CacheModule.registerAsync({
       isGlobal: true,
