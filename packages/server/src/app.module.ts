@@ -154,10 +154,13 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
       useFactory: async () => ({
         store: await redisStore({
           ttl: process.env.REDIS_CACHE_TTL ? +process.env.REDIS_CACHE_TTL : 5000,
-          url: process.env.REDIS_URL,
+          url: process.env.REDIS_URL.replace('redis://', 'rediss://'),
           socket: {
-            tls: true,
-            rejectUnauthorized: false
+            tls: process.env.NODE_ENV === 'production',
+            rejectUnauthorized: false,
+            servername: process.env.REDIS_HOST,
+            minVersion: 'TLSv1.2',
+            maxVersion: 'TLSv1.3'
           }
         }),
       }),
