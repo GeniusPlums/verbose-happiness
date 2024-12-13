@@ -160,14 +160,7 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
         rejectUnauthorized: false,
         servername: process.env.REDIS_HOST
       },
-      retry_strategy: (times: number) => {
-        if (times > 3) {
-          throw new Error(`[Redis] Could not connect after ${times} attempts`);
-        }
-        return Math.min(times * 200, 1000);
-      },
-      maxRetriesPerRequest: 3,
-      enableReadyCheck: false
+      reconnectStrategy: (retries: number) => Math.min(retries * 50, 1000)
     }),
   }),
 }),
