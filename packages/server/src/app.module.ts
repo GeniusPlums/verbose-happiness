@@ -136,7 +136,7 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
         }),
       ]
       : []),
-    MongooseModule.forRoot(process.env.MONGODB_URI, {
+    MongooseModule.forRoot(formatMongoConnectionString(process.env.MONGODB_URI), {
       useNewUrlParser: true,
       useUnifiedTopology: true,
       ssl: process.env.NODE_ENV === 'production',
