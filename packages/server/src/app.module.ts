@@ -114,32 +114,27 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
   let ctx: any = {};
   try {
     ctx = JSON.parse(info.context as string);
-  } catch (e) {}
-  
-  return `[${info.timestamp}] [${info.level}] [${process.env.LAUDSPEAKER_PROCESS_TYPE}-${process.pid}]${
-    ctx?.class ? ' [Class: ' + ctx?.class + ']' : ''
-  }${ctx?.method ? ' [Method: ' + ctx?.method + ']' : ''}${
-    ctx?.session ? ' [User: ' + ctx?.user + ']' : ''
-  }${ctx?.session ? ' [Session: ' + ctx?.session + ']' : ''}: ${
-    info.message
-  } ${info.stack ? '{stack: ' + info.stack : ''} ${
-    ctx.cause ? 'cause: ' + ctx.cause : ''
-  } ${ctx.message ? 'message: ' + ctx.message : ''} ${
-    ctx.name ? 'name: ' + ctx.name + '}' : ''
-  }`;
+  } catch (e) { }
+
+  return `[${info.timestamp}] [${info.level}] [${process.env.LAUDSPEAKER_PROCESS_TYPE}-${process.pid}]${ctx?.class ? ' [Class: ' + ctx?.class + ']' : ''
+    }${ctx?.method ? ' [Method: ' + ctx?.method + ']' : ''}${ctx?.session ? ' [User: ' + ctx?.user + ']' : ''
+    }${ctx?.session ? ' [Session: ' + ctx?.session + ']' : ''}: ${info.message
+    } ${info.stack ? '{stack: ' + info.stack : ''} ${ctx.cause ? 'cause: ' + ctx.cause : ''
+    } ${ctx.message ? 'message: ' + ctx.message : ''} ${ctx.name ? 'name: ' + ctx.name + '}' : ''
+    }`;
 });
 
 @Module({
   imports: [
     ...(process.env.SERVE_CLIENT_FROM_NEST
       ? [
-          ServeStaticModule.forRoot({
-            rootPath: process.env.CLIENT_PATH
-              ? process.env.CLIENT_PATH
-              : join(__dirname, '../../../', 'client/build/'),
-            exclude: ['api/*'],
-          }),
-        ]
+        ServeStaticModule.forRoot({
+          rootPath: process.env.CLIENT_PATH
+            ? process.env.CLIENT_PATH
+            : join(__dirname, '../../../', 'client/build/'),
+          exclude: ['api/*'],
+        }),
+      ]
       : []),
     MongooseModule.forRoot(process.env.MONGODB_URI, {
       useNewUrlParser: true,
@@ -150,20 +145,19 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
       tls: true,
     }),
     CacheModule.registerAsync({
-  isGlobal: true,
-  useFactory: async () => ({
-    store: await redisStore({
-      ttl: process.env.REDIS_CACHE_TTL ? +process.env.REDIS_CACHE_TTL : 5000,
-      url: process.env.REDIS_URL,
-      tls: {
-        servername: process.env.REDIS_HOST,
-        rejectUnauthorized: false,
-        minVersion: 'TLSv1.2',
-        maxVersion: 'TLSv1.3'
-      }
+      isGlobal: true,
+      useFactory: async () => ({
+        store: await redisStore({
+          ttl: process.env.REDIS_CACHE_TTL ? +process.env.REDIS_CACHE_TTL : 5000,
+          url: process.env.REDIS_URL,
+          socket: {
+            tls: process.env.REDIS_TLS === 'true',
+            rejectUnauthorized: false,
+            servername: process.env.REDIS_HOST
+          }
+        }),
+      }),
     }),
-  }),
-}),
     QueueModule.forRoot({
       connection: {
         uri: process.env.RMQ_CONNECTION_URI ?? 'amqp://localhost',
