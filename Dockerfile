@@ -371,7 +371,9 @@ ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
     NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
     NODE_ENV=production \
     TYPEORM_CONFIG=/app/typeorm.config.cjs \
-    TS_NODE_PROJECT=tsconfig.json
+    TS_NODE_PROJECT=tsconfig.json \
+    JWT_KEY=h1E8OZF6TcLfofpWjQxS5sNRgRb9Mgc33dtYtBr1mAkqn7vXiIU4PKy2CDVz0GeY \
+    JWT_EXPIRES=365d
 
 # Install global packages
 RUN npm config set prefix '/home/appuser/.npm-global' && \
