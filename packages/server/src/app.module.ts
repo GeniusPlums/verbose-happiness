@@ -79,6 +79,23 @@ function redact(obj) {
   return copy;
 }
 
+export const formatMongoConnectionString = (mongoConnectionString: string) => {
+  if (mongoConnectionString) {
+    if (mongoConnectionString.includes('mongodb+srv')) {
+      return mongoConnectionString;
+    } else if (
+      !mongoConnectionString.includes('mongodb') &&
+      !mongoConnectionString.includes('?directConnection=true')
+    ) {
+      return `mongodb://${mongoConnectionString}?directConnection=true`;
+    } else if (!mongoConnectionString.includes('mongodb')) {
+      return `mongodb://${mongoConnectionString}`;
+    } else if (!mongoConnectionString.includes('?directConnection=true')) {
+      return `${mongoConnectionString}?directConnection=true`;
+    } else return mongoConnectionString;
+  }
+};
+
 function getProvidersList() {
   let providerList: Array<any> = [
     RedlockService,
@@ -130,7 +147,7 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
       ssl: true,
       authSource: 'admin',
       retryWrites: true,
-      tls: true
+      tls: true,
     }),
     CacheModule.registerAsync({
       isGlobal: true,
@@ -138,7 +155,10 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
         store: await redisStore({
           ttl: process.env.REDIS_CACHE_TTL ? +process.env.REDIS_CACHE_TTL : 5000,
           url: process.env.REDIS_URL,
-          tls: { rejectUnauthorized: false }
+          socket: {
+            tls: true,
+            rejectUnauthorized: false
+          }
         }),
       }),
     }),
