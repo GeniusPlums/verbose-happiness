@@ -155,10 +155,11 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
     store: await redisStore({
       ttl: process.env.REDIS_CACHE_TTL ? +process.env.REDIS_CACHE_TTL : 5000,
       url: process.env.REDIS_URL,
-      socket: {
-        tls: true,
+      tls: {
+        servername: process.env.REDIS_HOST,
         rejectUnauthorized: false,
-        servername: process.env.REDIS_HOST
+        minVersion: 'TLSv1.2',
+        maxVersion: 'TLSv1.3'
       }
     }),
   }),
