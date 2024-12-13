@@ -1,3 +1,5 @@
+version: '3'
+
 services:
   redis:
     hostname: redis
@@ -65,25 +67,13 @@ services:
       - "27017:27017"
     command: "--bind_ip_all --replSet rs0"
     healthcheck:
-      test:
-        [
-          "CMD",
-          "mongosh",
-          "admin",
-          "--port",
-          "27017",
-          "--eval",
-          "db.adminCommand('ping').ok",
-        ]
+      test: ["CMD", "mongosh", "admin", "--port", "27017", "--eval", "db.adminCommand('ping').ok"]
       interval: 5s
       timeout: 2s
       retries: 20
     networks:
       - laudspeaker_default
 
-  # Ensure the following settings are set
-  # date_time_input_format: 'best_effort'
-  # output_format_json_array_of_rows: 1
   clickhouse:
     hostname: clickhouse
     container_name: clickhouse
@@ -103,7 +93,6 @@ services:
       - source: clickhouse_rmq_config
         target: /etc/clickhouse-server/config.d/rmq.xml
 
-  #### START kafka related containers
   zoo1:
     image: bitnami/zookeeper:latest
     hostname: zoo1
@@ -142,9 +131,6 @@ services:
     networks:
       - laudspeaker_default
 
-  #### END kafka related containers
-
-  #### START kafka connect related containers
   kafka-connect1:
     image: bitnami/kafka:latest
     hostname: kafka-connect1
@@ -167,34 +153,11 @@ services:
       - bash
       - -c
       - /opt/bitnami/kafka/bin/connect-distributed.sh /opt/bitnami/kafka-connect/connect.properties
-  #### END kafka connect related containers
-
-  init-environment:
-    build:
-      context: ./local-env/
-      dockerfile: Dockerfile.initenv
-    container_name: init-environment
-    depends_on:
-      mongo:
-        condition: service_healthy
-      kafka1:
-        condition: service_started
-      clickhouse:
-        condition: service_healthy
-      kafka-connect1:
-        condition: service_healthy
-      s3:
-        condition: service_healthy
-    networks:
-      - laudspeaker_default
-    command:
-      - "environment"
 
   rabbitmq:
     image: rabbitmq:management
     hostname: rabbitmq
-    command:
-      - rabbitmq-server
+    command: rabbitmq-server
     ports:
       - "5672:5672"
       - "1883:1883"
@@ -230,6 +193,27 @@ services:
       PORT: 8555
     networks:
       - laudspeaker_default
+
+  init-environment:
+    build:
+      context: ./local-env/
+      dockerfile: Dockerfile.initenv
+    container_name: init-environment
+    depends_on:
+      mongo:
+        condition: service_healthy
+      kafka1:
+        condition: service_started
+      clickhouse:
+        condition: service_healthy
+      kafka-connect1:
+        condition: service_healthy
+      s3:
+        condition: service_healthy
+    networks:
+      - laudspeaker_default
+    command:
+      - "environment"
 
   laudspeaker-web:
     profiles:
@@ -324,11 +308,7 @@ services:
     command:
       - "connectors"
 
-  # GUIs for all supporting services.
-  # currently:
-  #   - no gui setup for postgres
-  #   - clickhouse gui is deployed with the clickhouse server
-
+  # GUIs for all supporting services
   kafka-gui:
     container_name: kafka-gui
     image: provectuslabs/kafka-ui:latest
