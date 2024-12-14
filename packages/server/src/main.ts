@@ -92,14 +92,11 @@ if (cluster.isPrimary) {
 
     if (process.env.LAUDSPEAKER_PROCESS_TYPE == 'WEB') {
       const httpsOptions = {
-        key:
-          parseInt(process.env.PORT) == 443
-            ? readFileSync(process.env.KEY_PATH, 'utf8')
-            : null,
-        cert:
-          parseInt(process.env.PORT) == 443
-            ? readFileSync(process.env.CERT_PATH, 'utf8')
-            : null,
+        key: process.env.KEY_PATH ? readFileSync(process.env.KEY_PATH, 'utf8') : null,
+        cert: process.env.CERT_PATH ? readFileSync(process.env.CERT_PATH, 'utf8') : null,
+        minVersion: 'TLSv1.2',
+        maxVersion: 'TLSv1.3',
+        ciphers: 'HIGH:!aNULL:!MD5'
       };
 
       app = await NestFactory.create(
@@ -107,8 +104,7 @@ if (cluster.isPrimary) {
         new ExpressAdapter(expressApp),
         {
           rawBody: true,
-          httpsOptions:
-            parseInt(process.env.PORT) == 443 ? httpsOptions : undefined,
+          httpsOptions: process.env.KEY_PATH && process.env.CERT_PATH ? httpsOptions : undefined,
         }
       );
 
