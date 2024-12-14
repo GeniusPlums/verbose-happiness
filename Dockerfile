@@ -8,6 +8,13 @@ COPY package*.json ./
 COPY packages/client/package*.json ./packages/client/
 COPY packages/server/package*.json ./packages/server/
 
+# Install SSL certificates and other necessary packages
+RUN apt-get update && \
+    apt-get install -y \
+    ca-certificates \
+    openssl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Debug: Check if package.json exists in base stage
 RUN ls -la /app/package.json || echo "No package.json in base"
 
@@ -21,6 +28,13 @@ ARG FRONTEND_SENTRY_DSN_URL=https://2444369e8e13b39377ba90663ae552d1@o4506038702
 ARG REACT_APP_POSTHOG_HOST
 ARG REACT_APP_POSTHOG_KEY
 ARG REACT_APP_ONBOARDING_API_KEY
+
+# Install SSL certificates
+RUN apt-get update && \
+    apt-get install -y \
+    ca-certificates \
+    openssl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set build-time environment variables
 ENV SENTRY_AUTH_TOKEN=${FRONTEND_SENTRY_AUTH_TOKEN} \
@@ -72,6 +86,13 @@ RUN cd packages/client && \
 FROM node:18-slim AS backend
 WORKDIR /app
 
+# Install SSL certificates and other necessary packages
+RUN apt-get update && \
+    apt-get install -y \
+    ca-certificates \
+    openssl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create TypeScript declarations first
 RUN mkdir -p /app/packages/server/src/@types && \
     echo 'import { User } from "../entities/user.entity";\n\
@@ -102,10 +123,13 @@ RUN cd packages/server && \
 FROM node:18-slim AS final
 WORKDIR /app
 
-# Install curl and create directories
+# Install necessary packages including SSL support
 RUN apt-get update && \
-    apt-get install -y curl && \
-    rm -rf /var/lib/apt/lists/* && \
+    apt-get install -y \
+    curl \
+    ca-certificates \
+    openssl \
+    && rm -rf /var/lib/apt/lists/* && \
     adduser --uid 1001 --disabled-password --gecos "" appuser && \
     mkdir -p \
         /app/packages/server/src \
@@ -152,15 +176,12 @@ RUN chmod +x docker-entrypoint.sh
 # Install all dependencies from package.json
 COPY --chown=appuser:appuser package*.json ./
 RUN npm install --legacy-peer-deps \
-    # Development and Build Tools
     @babel/core@^7.16.0 \
     @golevelup/ts-jest@^0.3.7 \
     @svgr/webpack@^5.5.0 \
     case-sensitive-paths-webpack-plugin@^2.4.0 \
     env-cmd@^10.1.0 \
     foreman@^3.0.1 \
-
-    # UI Components and Libraries
     @tailwindcss/forms@^0.5.3 \
     @tisoap/react-flow-smart-edge@^3.0.0 \
     @wojtekmaj/react-daterange-picker@^3.4.0 \
@@ -186,8 +207,6 @@ RUN npm install --legacy-peer-deps \
     react-use@^17.4.0 \
     recharts@^2.12.2 \
     victory@^36.6.3 \
-
-    # Data Processing and Utilities
     @liaoliaots/nestjs-redis@^9.0.5 \
     async-dash@^1.0.4 \
     camelcase@^6.2.1 \
@@ -199,19 +218,13 @@ RUN npm install --legacy-peer-deps \
     taskforce-connector@^1.24.3 \
     uuid@^8.3.2 \
     uuidv4@^6.2.13 \
-
-    # Type Definitions
     @types/bcryptjs@^2.4.2 \
     @types/d3-hierarchy@^3.1.2 \
     @types/papaparse@^5.3.7 \
     @types/react-color@^3.0.6 \
     @types/validator@^13.11.7 \
-
-    # Add tst-reflect to core dependencies
     tst-reflect@0.7.4 \
     tst-reflect-transformer@0.12.1 \
-    
-    # NestJS Core Dependencies
     @nestjs/common@^10.0.0 \
     @nestjs/config@^2.3.0 \
     @nestjs/core@^9.0.0 \
@@ -227,8 +240,6 @@ RUN npm install --legacy-peer-deps \
     @nestjs/bullmq@^1.1.0 \
     @nestjs/cache-manager@^2.2.0 \
     @nestjs/mapped-types@^1.2.2 \
-    
-    # Database & ORM
     typeorm@^0.3.12 \
     mongoose@^7.0.3 \
     @clickhouse/client@^1.4.0 \
@@ -237,8 +248,6 @@ RUN npm install --legacy-peer-deps \
     pg-cursor@^2.8.0 \
     pg-query-stream@^4.5.5 \
     mysql2@^2.3.3 \
-    
-    # Caching & Queue
     bullmq@^3.10.3 \
     cache-manager@^5.4.0 \
     cache-manager-ioredis-yet@^1.2.2 \
@@ -246,23 +255,17 @@ RUN npm install --legacy-peer-deps \
     cache-manager-redis-yet@^4.1.2 \
     redis@^4.6.7 \
     redlock@^5.0.0-beta.2 \
-    
-    # Authentication & Security
     passport@^0.5.3 \
     passport-headerapikey@^1.2.2 \
     passport-jwt@^4.0.0 \
     passport-local@^1.0.0 \
     bcrypt@^5.0.1 \
     bcryptjs@^2.4.3 \
-    
-    # Email & Communication
     @sendgrid/eventwebhook@^8.0.0 \
     @sendgrid/mail@^7.7.0 \
     mailgun.js@^8.2.1 \
     nodemailer@^6.5.0 \
     twilio@^3.84.0 \
-    
-    # Monitoring & Logging
     @sentry/cli@^2.21.2 \
     @sentry/node@^7.73.0 \
     @sentry/profiling-node@^1.2.1 \
@@ -274,8 +277,6 @@ RUN npm install --legacy-peer-deps \
     nest-morgan-logger@1.0.2 \
     nest-raven@^10.0.0 \
     nest-winston@^1.6.2 \
-    
-    # Utilities & Helpers
     class-transformer@^0.5.1 \
     class-validator@^0.13.2 \
     class-sanitizer@^1.0.1 \
@@ -283,21 +284,15 @@ RUN npm install --legacy-peer-deps \
     date-fns@^2.30.0 \
     rxjs@^7.2.0 \
     reflect-metadata@^0.1.13 \
-    
-    # File Processing
     csv-parse@^5.3.5 \
     fast-csv@^4.3.6 \
     multer@^1.4.5-lts.1 \
-    
-    # External Services
     @slack/oauth@^2.5.4 \
     @slack/web-api@^6.7.2 \
     firebase-admin@^11.6.0 \
     stripe@^15.7.0 \
     aws-sdk@^2.1354.0 \
     posthog-node@^2.5.4 \
-    
-    # Additional Dependencies
     @dagrejs/graphlib@^2.1.13 \
     @js-temporal/polyfill@^0.4.4 \
     amqplib@^0.10.4 \
@@ -311,8 +306,6 @@ RUN npm install --legacy-peer-deps \
     sync-fetch@^0.4.2 \
     traverse@0.6.7 \
     undici@^5.21.0 \
-
-    # UI and React Dependencies
     @emotion/react@11.9.3 \
     @emotion/styled@11.9.3 \
     @good-ghosting/random-name-generator@^1.0.3 \
@@ -334,8 +327,6 @@ RUN npm install --legacy-peer-deps \
     react-router-dom@6.3.0 \
     reactflow@^11.5.6 \
     redux@4.2.0 \
-
-    # Development Dependencies
     @4tw/cypress-drag-drop@^2.2.1 \
     @nestjs/schematics@^9.0.0 \
     @types/cron@^2.0.0 \
@@ -348,8 +339,6 @@ RUN npm install --legacy-peer-deps \
     dotenv@16.0.3 \
     eslint@^8.24.0 \
     prettier@^2.7.1 \
-
-    # Additional Dependencies
     @databricks/sql@1.0.0 \
     @sendgrid/client@^7.7.0 \
     rimraf@^3.0.2
@@ -373,7 +362,16 @@ ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
     TYPEORM_CONFIG=/app/typeorm.config.cjs \
     TS_NODE_PROJECT=tsconfig.json \
     JWT_KEY=h1E8OZF6TcLfofpWjQxS5sNRgRb9Mgc33dtYtBr1mAkqn7vXiIU4PKy2CDVz0GeY \
-    JWT_EXPIRES=365d
+    JWT_EXPIRES=365d \
+    NODE_OPTIONS="--tls-min-v1.2 --tls-max-v1.3" \
+    MONGODB_SSL=true \
+    MONGODB_TLS=true \
+    MONGODB_TLS_INSECURE=true \
+    MONGODB_DIRECT_CONNECTION=true \
+    MONGODB_ALLOW_INVALID_CERTS=true \
+    MONGODB_ALLOW_INVALID_HOSTNAMES=true \
+    MONGODB_TLS_PROTOCOL=TLS_method \
+    MONGODB_REJECT_UNAUTHORIZED=false
 
 # Install global packages
 RUN npm config set prefix '/home/appuser/.npm-global' && \
