@@ -5,12 +5,19 @@ export class TypeOrmConfigService implements TypeOrmOptionsFactory {
   public createTypeOrmOptions(): TypeOrmModuleOptions {
     console.log('Database Environment Variables:');
     console.log({
+      // PostgreSQL variables
       DB_HOST: process.env.DB_HOST,
       DB_PORT: process.env.DB_PORT,
       DB_NAME: process.env.DB_NAME,
       DB_USER: process.env.DB_USER,
       DB_SSL: process.env.DB_SSL,
-      MONGODB_URI: process.env.MONGODB_URI
+      // MongoDB variables
+      MONGODB_URI: process.env.MONGODB_URI,
+      MONGODB_HOST: process.env.MONGODB_HOST,
+      MONGODB_PORT: process.env.MONGODB_PORT,
+      MONGODB_DATABASE: process.env.MONGODB_DATABASE,
+      MONGODB_USER: process.env.MONGODB_USER,
+      NODE_ENV: process.env.NODE_ENV
     });
 
     let totalMaxConnections = process.env.DATABASE_MAX_CONNECTIONS
