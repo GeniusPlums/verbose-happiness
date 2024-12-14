@@ -17,6 +17,7 @@ import * as https from 'https';
 import { TLSSocket } from 'tls';
 import { SecureContextOptions } from 'tls';
 import * as tls from 'tls';
+import * as constants from 'constants';
 
 const morgan = require('morgan');
 
@@ -98,17 +99,16 @@ if (cluster.isPrimary) {
         {
           rawBody: true,
           httpsOptions: process.env.NODE_ENV === 'production' ? {
-            secureOptions: tls.constants.SSL_OP_NO_TLSv1 | tls.constants.SSL_OP_NO_TLSv1_1,
+            rejectUnauthorized: true,
+            secureProtocol: 'TLSv1_2_method',
             minVersion: 'TLSv1.2',
-            maxVersion: 'TLSv1.3'
+            ciphers: 'HIGH:!aNULL:!MD5',
+            honorCipherOrder: true
           } : {
+            rejectUnauthorized: false,
             key: process.env.KEY_PATH ? readFileSync(process.env.KEY_PATH, 'utf8') : undefined,
-            cert: process.env.CERT_PATH ? readFileSync(process.env.CERT_PATH, 'utf8') : undefined,
-            ...process.env.NODE_ENV !== 'production' && {
-              rejectUnauthorized: false,
-              requestCert: false
-            }
-          } as SecureContextOptions
+            cert: process.env.CERT_PATH ? readFileSync(process.env.CERT_PATH, 'utf8') : undefined
+          }
         }
       );
 
