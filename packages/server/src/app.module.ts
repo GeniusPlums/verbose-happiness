@@ -135,39 +135,29 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
     MongooseModule.forRoot(formatMongoConnectionString(process.env.MONGODB_URI), {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  retryAttempts: 3,
-  connectTimeoutMS: 10000,
-  socketTimeoutMS: 45000,
-  // Base SSL/TLS settings
-  ssl: true,
-  tls: true,
-  tlsInsecure: true,
-  directConnection: true,
-  tlsAllowInvalidCertificates: true,
-  tlsAllowInvalidHostnames: true,
-  // Socket configuration
+  retryAttempts: Number(process.env.MONGODB_RETRY_ATTEMPTS) || 3,
+  connectTimeoutMS: Number(process.env.MONGODB_CONNECT_TIMEOUT_MS) || 10000,
+  socketTimeoutMS: Number(process.env.MONGODB_SOCKET_TIMEOUT_MS) || 45000,
+  ssl: process.env.MONGODB_SSL === 'true',
+  tls: process.env.MONGODB_TLS === 'true',
+  tlsInsecure: process.env.MONGODB_TLS_INSECURE === 'true',
+  directConnection: process.env.MONGODB_DIRECT_CONNECTION === 'true',
+  tlsAllowInvalidCertificates: process.env.MONGODB_ALLOW_INVALID_CERTS === 'true',
+  tlsAllowInvalidHostnames: process.env.MONGODB_ALLOW_INVALID_HOSTNAMES === 'true',
   socket: {
     tls: {
-      // Protocol settings
-      secureProtocol: 'TLS_method',
-      minVersion: 'TLSv1.2',
-      maxVersion: 'TLSv1.3',
-      rejectUnauthorized: false,
+      secureProtocol: process.env.MONGODB_TLS_PROTOCOL || 'TLS_method',
+      minVersion: process.env.MONGODB_TLS_MIN_VERSION || 'TLSv1.2',
+      maxVersion: process.env.MONGODB_TLS_MAX_VERSION || 'TLSv1.3',
+      rejectUnauthorized: process.env.MONGODB_REJECT_UNAUTHORIZED === 'true',
       servername: process.env.MONGODB_HOST,
-      checkServerIdentity: () => undefined, // Bypass hostname checks
-      // Comprehensive cipher suite
-      ciphers: [
-        // Modern GCM ciphers
+      ciphers: process.env.MONGODB_CIPHERS || [
         'ECDHE-ECDSA-AES128-GCM-SHA256',
         'ECDHE-RSA-AES128-GCM-SHA256',
         'ECDHE-ECDSA-AES256-GCM-SHA384',
         'ECDHE-RSA-AES256-GCM-SHA384',
-        // Fallback GCM ciphers
         'AES256-GCM-SHA384',
-        'AES128-GCM-SHA256',
-        // Legacy fallback (if needed)
-        'AES256-SHA256',
-        'AES128-SHA256'
+        'AES128-GCM-SHA256'
       ].join(':')
     }
   }
