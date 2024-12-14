@@ -211,6 +211,7 @@ RUN npm install --legacy-peer-deps \
     @nestjs/serve-static@3.0.1 \
     @nestjs/typeorm@^9.0.1 \
     @nestjs/websockets@^9.4.0 \
+    @nestjs/axios@^3.1.3 \
     @nestjs/bullmq@^1.1.0 \
     @nestjs/cache-manager@^2.2.0 \
     @nestjs/mapped-types@^1.2.2 \
