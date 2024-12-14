@@ -16,7 +16,7 @@ import { setInterval as originalSetInterval } from 'timers';
 import express from 'express';
 import cluster from 'cluster';
 import * as os from 'os';
-import https from 'https'; // Import https module
+import * as https from 'https'; // Import https module
 
 const morgan = require('morgan');
 
@@ -92,25 +92,25 @@ if (cluster.isPrimary) {
     let app;
 
     if (process.env.LAUDSPEAKER_PROCESS_TYPE == 'WEB') {
-      let httpsOptions = undefined;
-
-      // For development and Render deployment
       const app = await NestFactory.create(
         AppModule,
         new ExpressAdapter(expressApp),
         {
           rawBody: true,
-          httpsOptions,
-          // Explicitly set TLS options for all connections
-          httpsAgent: new https.Agent({
-            secureProtocol: 'TLS_method',
+          httpsOptions: process.env.NODE_ENV === 'production' ? undefined : {
+            key: process.env.KEY_PATH ? readFileSync(process.env.KEY_PATH, 'utf8') : undefined,
+            cert: process.env.CERT_PATH ? readFileSync(process.env.CERT_PATH, 'utf8') : undefined,
             minVersion: 'TLSv1.2',
             maxVersion: 'TLSv1.3',
-            ciphers: 'HIGH:!aNULL:!MD5',
-            rejectUnauthorized: process.env.NODE_ENV === 'production'
-          })
+            ciphers: 'HIGH:!aNULL:!MD5'
+          }
         }
       );
+
+      if (process.env.SERVE_CLIENT_FROM_NEST) app.setGlobalPrefix('api');
+      app.enableCors();
+      app.use(express.json({ limit: '50mb' }));
+      app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
       const rawBodyBuffer = (req, res, buf, encoding) => {
         if (buf && buf.length) {
@@ -118,9 +118,6 @@ if (cluster.isPrimary) {
         }
       };
       app.use(urlencoded({ verify: rawBodyBuffer, extended: true }));
-      if (process.env.SERVE_CLIENT_FROM_NEST) app.setGlobalPrefix('api');
-      app.set('trust proxy', 1);
-      app.enableCors();
 
       const morganMiddleware = morgan(
         ':method :url :status :res[content-length] :remote-addr :user-agent - :response-time ms :total-time ms',
