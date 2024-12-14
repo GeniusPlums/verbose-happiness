@@ -151,7 +151,8 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
         tls: process.env.NODE_ENV === 'production' && {
           minVersion: 'TLSv1.2',
           maxVersion: 'TLSv1.3',
-          rejectUnauthorized: false
+          rejectUnauthorized: false,
+          servername: process.env.MONGODB_HOST
         }
       }
     }),
