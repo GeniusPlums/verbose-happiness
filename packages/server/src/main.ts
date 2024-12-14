@@ -16,6 +16,7 @@ import { setInterval as originalSetInterval } from 'timers';
 import express from 'express';
 import cluster from 'cluster';
 import * as os from 'os';
+import https from 'https'; // Import https module
 
 const morgan = require('morgan');
 
@@ -92,24 +93,22 @@ if (cluster.isPrimary) {
 
     if (process.env.LAUDSPEAKER_PROCESS_TYPE == 'WEB') {
       let httpsOptions = undefined;
-      
-      // Only configure HTTPS if certificates are provided and not in development
-      if (process.env.KEY_PATH && process.env.CERT_PATH && process.env.NODE_ENV !== 'development') {
-        httpsOptions = {
-          key: readFileSync(process.env.KEY_PATH, 'utf8'),
-          cert: readFileSync(process.env.CERT_PATH, 'utf8'),
-          minVersion: 'TLSv1.2',
-          maxVersion: 'TLSv1.3',
-          ciphers: 'HIGH:!aNULL:!MD5'
-        };
-      }
 
-      app = await NestFactory.create(
+      // For development and Render deployment
+      const app = await NestFactory.create(
         AppModule,
         new ExpressAdapter(expressApp),
         {
           rawBody: true,
-          httpsOptions
+          httpsOptions,
+          // Explicitly set TLS options for all connections
+          httpsAgent: new https.Agent({
+            secureProtocol: 'TLS_method',
+            minVersion: 'TLSv1.2',
+            maxVersion: 'TLSv1.3',
+            ciphers: 'HIGH:!aNULL:!MD5',
+            rejectUnauthorized: process.env.NODE_ENV === 'production'
+          })
         }
       );
 

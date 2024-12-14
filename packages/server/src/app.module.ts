@@ -57,6 +57,7 @@ import { ChannelsModule } from './api/channels/channels.module';
 import { TlsOptions } from 'tls';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { mongodbConfig, redisConfig } from './config/configuration';
+import { HttpModule } from '@nestjs/axios';
 
 const sensitiveKeys = [/cookie/i, /passw(or)?d/i, /^pw$/i, /^pass$/i, /secret/i, /token/i, /api[-._]?key/i];
 
@@ -240,33 +241,42 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
         secureProtocol: 'TLSv1_2_method'
       }
     }),
-      IntegrationsModule,
-      CustomersModule,
-      TemplatesModule,
-      SlackModule,
-      WebhookJobsModule,
-      AccountsModule,
-      EventsModule,
-      ModalsModule,
-      WebsocketsModule,
-      StepsModule,
-      JourneysModule,
-      SegmentsModule,
-      RedlockModule,
-      RavenModule,
-      KafkaModule,
-      OrganizationsModule,
-      ChannelsModule
-    ],
-    controllers: [AppController],
-    providers: getProvidersList(),
-  })
-  export class AppModule {
-    configure(consumer: MiddlewareConsumer) {
-      consumer
-        .apply(AuthMiddleware)
-        .forRoutes(EventsController)
-        .apply(SlackMiddleware)
-        .forRoutes({ path: '/slack/events', method: RequestMethod.POST });
-    }
+    HttpModule.register({
+      httpsAgent: new https.Agent({
+        secureProtocol: 'TLS_method',
+        minVersion: 'TLSv1.2',
+        maxVersion: 'TLSv1.3',
+        ciphers: 'HIGH:!aNULL:!MD5',
+        rejectUnauthorized: process.env.NODE_ENV === 'production'
+      })
+    }),
+    IntegrationsModule,
+    CustomersModule,
+    TemplatesModule,
+    SlackModule,
+    WebhookJobsModule,
+    AccountsModule,
+    EventsModule,
+    ModalsModule,
+    WebsocketsModule,
+    StepsModule,
+    JourneysModule,
+    SegmentsModule,
+    RedlockModule,
+    RavenModule,
+    KafkaModule,
+    OrganizationsModule,
+    ChannelsModule
+  ],
+  controllers: [AppController],
+  providers: getProvidersList(),
+})
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(AuthMiddleware)
+      .forRoutes(EventsController)
+      .apply(SlackMiddleware)
+      .forRoutes({ path: '/slack/events', method: RequestMethod.POST });
   }
+}
