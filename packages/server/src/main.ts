@@ -17,6 +17,7 @@ import express from 'express';
 import cluster from 'cluster';
 import * as os from 'os';
 import * as https from 'https'; // Import https module
+import { TLSSocket } from 'tls';
 
 const morgan = require('morgan');
 
@@ -100,8 +101,10 @@ if (cluster.isPrimary) {
           httpsOptions: process.env.NODE_ENV === 'production' ? undefined : {
             key: process.env.KEY_PATH ? readFileSync(process.env.KEY_PATH, 'utf8') : undefined,
             cert: process.env.CERT_PATH ? readFileSync(process.env.CERT_PATH, 'utf8') : undefined,
-            minVersion: 'TLSv1.2',
-            maxVersion: 'TLSv1.3',
+            secureOptions: (TLSSocket as any).TLS_OP_NO_TLSv1 | 
+                         (TLSSocket as any).TLS_OP_NO_TLSv1_1 |
+                         require('constants').SSL_OP_NO_SSLv2 |
+                         require('constants').SSL_OP_NO_SSLv3,
             ciphers: 'HIGH:!aNULL:!MD5'
           }
         }
