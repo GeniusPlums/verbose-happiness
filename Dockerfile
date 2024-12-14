@@ -21,18 +21,21 @@ ARG FRONTEND_SENTRY_DSN_URL=https://2444369e8e13b39377ba90663ae552d1@o4506038702
 ARG REACT_APP_POSTHOG_HOST
 ARG REACT_APP_POSTHOG_KEY
 ARG REACT_APP_ONBOARDING_API_KEY
+ARG NODE_ENV=production
+ARG RENDER_EXTERNAL_URL
 
 # Set build-time environment variables
 ENV SENTRY_AUTH_TOKEN=${FRONTEND_SENTRY_AUTH_TOKEN} \
     SENTRY_ORG=${FRONTEND_SENTRY_ORG} \
     SENTRY_PROJECT=${FRONTEND_SENTRY_PROJECT} \
     REACT_APP_SENTRY_DSN_URL_FRONTEND=${FRONTEND_SENTRY_DSN_URL} \
-    REACT_APP_WS_BASE_URL=${EXTERNAL_URL} \
+    REACT_APP_WS_BASE_URL=wss://${RENDER_EXTERNAL_URL:-$EXTERNAL_URL} \
+    REACT_APP_API_BASE_URL=https://${RENDER_EXTERNAL_URL:-$EXTERNAL_URL} \
     REACT_APP_POSTHOG_HOST=${REACT_APP_POSTHOG_HOST} \
     REACT_APP_POSTHOG_KEY=${REACT_APP_POSTHOG_KEY} \
     REACT_APP_ONBOARDING_API_KEY=${REACT_APP_ONBOARDING_API_KEY} \
     NODE_OPTIONS="--max-old-space-size=4096" \
-    NODE_ENV=production \
+    NODE_ENV=${NODE_ENV} \
     TS_NODE_TRANSPILE_ONLY=true
 
 WORKDIR /app
@@ -45,13 +48,11 @@ RUN cd packages/client && \
     npm install --save-dev @babel/plugin-proposal-private-property-in-object @types/react-helmet && \
     npm install --save react-helmet && \
     echo "declare module 'react-helmet';" > react-helmet.d.ts && \
-    # Create production environment file
     echo "REACT_APP_API_URL=${EXTERNAL_URL:-http://localhost:3000}" > .env.prod && \
     echo "REACT_APP_WS_BASE_URL=${EXTERNAL_URL:-http://localhost:3000}" >> .env.prod && \
     echo "REACT_APP_POSTHOG_HOST=${REACT_APP_POSTHOG_HOST:-}" >> .env.prod && \
     echo "REACT_APP_POSTHOG_KEY=${REACT_APP_POSTHOG_KEY:-}" >> .env.prod && \
     echo "REACT_APP_ONBOARDING_API_KEY=${REACT_APP_ONBOARDING_API_KEY:-}" >> .env.prod && \
-    # Build frontend
     DISABLE_ESLINT_PLUGIN=true \
     EXTEND_ESLINT=false \
     ESLINT_NO_DEV_ERRORS=true \
@@ -75,7 +76,6 @@ FROM node:18-slim AS backend
 WORKDIR /app
 
 # Create TypeScript declarations first
-# Create TypeScript declarations first
 RUN mkdir -p /app/packages/server/src/@types && \
     echo 'import { User } from "../entities/user.entity";\n\
 \n\
@@ -96,31 +96,20 @@ COPY packages/server/package*.json ./packages/server/
 # Copy server source
 COPY packages/server ./packages/server
 
-# Verify files exist
-RUN ls -la /app/package.json && \
-    ls -la /app/packages/server/package.json && \
-    ls -la /app/packages/server/src/@types/express.d.ts
-
 # Install dependencies and build
 RUN cd packages/server && \
     npm ci && \
     npm run build
 
-# Verify build artifacts
-RUN ls -la /app/packages/server/dist
-
-# Copy Sentry release file from frontend build
-COPY --from=frontend /app/SENTRY_RELEASE ./SENTRY_RELEASE
-
-# Debug: Check if package.json exists in backend stage
-RUN ls -la /app/package.json || echo "No package.json in backend"
-
 # Final stage
 FROM node:18-slim AS final
 WORKDIR /app
 
-# Root operations first
-RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
+# Install curl and create directories
+RUN apt-get update && \
+    apt-get install -y curl && \
+    rm -rf /var/lib/apt/lists/* && \
+    adduser --uid 1001 --disabled-password --gecos "" appuser && \
     mkdir -p \
         /app/packages/server/src \
         /app/migrations \
@@ -130,21 +119,17 @@ RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
     chown -R appuser:appuser /app /home/appuser && \
     chmod -R 755 /app
 
-# Copy files and configs first
-COPY --chown=appuser:appuser docker-entrypoint.sh ./
-RUN chmod +x docker-entrypoint.sh
-
-# Create TypeORM config with proper DataSource instance
+# Create TypeORM config file
 RUN echo "const { DataSource } = require('typeorm');\n\
 const path = require('path');\n\
 \n\
-const AppDataSource = new DataSource({\n\
+const dataSource = new DataSource({\n\
   type: 'postgres',\n\
-  host: process.env.DB_HOST || 'localhost',\n\
-  port: parseInt(process.env.DB_PORT) || 5432,\n\
-  username: process.env.DB_USER || 'postgres',\n\
-  password: process.env.DB_PASSWORD || 'postgres',\n\
-  database: process.env.DB_NAME || 'laudspeaker',\n\
+  host: process.env.DB_HOST,\n\
+  port: parseInt(process.env.DB_PORT || '5432'),\n\
+  username: process.env.DB_USER,\n\
+  password: process.env.DB_PASSWORD,\n\
+  database: process.env.DB_NAME,\n\
   entities: [path.join(__dirname, 'dist/**/*.entity.{js,ts}')],\n\
   migrations: [path.join(__dirname, 'migrations/*.{js,ts}')],\n\
   migrationsTableName: 'migrations',\n\
@@ -152,46 +137,264 @@ const AppDataSource = new DataSource({\n\
   logging: process.env.NODE_ENV === 'production' \n\
     ? ['error', 'warn']  // Production logging\n\
     : ['query', 'error', 'warn'],  // Development logging\n\
-  synchronize: false\n\
+  synchronize: false,\n\
+  ssl: process.env.DB_SSL === 'true' ? {\n\
+    rejectUnauthorized: false\n\
+  } : false\n\
 });\n\
 \n\
-module.exports = AppDataSource;" > /app/typeorm.config.js && \
-    chown appuser:appuser /app/typeorm.config.js && \
-    chmod 644 /app/typeorm.config.js
+module.exports = dataSource;\n\
+module.exports.default = dataSource;" > /app/typeorm.config.cjs && \
+    chown appuser:appuser /app/typeorm.config.cjs && \
+    chmod 644 /app/typeorm.config.cjs
 
-# Copy artifacts in correct order
-COPY --chown=appuser:appuser --from=base /app/package*.json ./
-COPY --chown=appuser:appuser --from=base /app/packages/server/package*.json ./packages/server/
-COPY --chown=appuser:appuser --from=frontend /app/packages/client/build ./client/
+# Copy files and configs first
+COPY --chown=appuser:appuser docker-entrypoint.sh ./
+RUN chmod +x docker-entrypoint.sh
+
+# Install all dependencies from package.json
+COPY --chown=appuser:appuser package*.json ./
+RUN npm install --legacy-peer-deps \
+    # Development and Build Tools
+    @babel/core@^7.16.0 \
+    @golevelup/ts-jest@^0.3.7 \
+    @svgr/webpack@^5.5.0 \
+    case-sensitive-paths-webpack-plugin@^2.4.0 \
+    env-cmd@^10.1.0 \
+    foreman@^3.0.1 \
+    
+    # UI Components and Libraries
+    @tailwindcss/forms@^0.5.3 \
+    @tisoap/react-flow-smart-edge@^3.0.0 \
+    @wojtekmaj/react-daterange-picker@^3.4.0 \
+    ace-builds@^1.15.0 \
+    d3-hierarchy@^3.1.2 \
+    framer-motion@^10.16.4 \
+    keyboardjs@^2.7.0 \
+    react-ace@^10.1.0 \
+    react-confirm-alert@^3.0.6 \
+    react-custom-scrollbars-2@^4.5.0 \
+    react-draggable@^4.4.5 \
+    react-google-recaptcha@^2.1.0 \
+    react-joyride@^2.5.4 \
+    react-lines-ellipsis@^0.15.3 \
+    react-loader-spinner@^5.3.4 \
+    react-markdown@^8.0.6 \
+    react-password-checklist@^1.5.0 \
+    react-popper@^2.3.0 \
+    react-querybuilder@^6.4.1 \
+    react-slider@^2.0.4 \
+    react-social-media-embed@^2.3.4 \
+    react-tagsinput@^3.20.3 \
+    react-use@^17.4.0 \
+    recharts@^2.12.2 \
+    victory@^36.6.3 \
+    
+    # Data Processing and Utilities
+    @liaoliaots/nestjs-redis@^9.0.5 \
+    async-dash@^1.0.4 \
+    camelcase@^6.2.1 \
+    convict@^6.2.4 \
+    @types/convict@^6.1.6 \
+    dayjs@^1.11.10 \
+    luxon@^3.2.1 \
+    moment-timezone@^0.5.43 \
+    papaparse@^5.4.1 \
+    posthog-js@^1.29.3 \
+    taskforce-connector@^1.24.3 \
+    uuid@^8.3.2 \
+    uuidv4@^6.2.13 \
+    
+    # Type Definitions
+    @types/bcryptjs@^2.4.2 \
+    @types/d3-hierarchy@^3.1.2 \
+    @types/papaparse@^5.3.7 \
+    @types/react-color@^3.0.6 \
+    @types/validator@^13.11.7 \
+    
+    # Add tst-reflect to core dependencies
+    tst-reflect@0.7.4 \
+    tst-reflect-transformer@0.12.1 \
+    
+    # NestJS Core Dependencies
+    @nestjs/common@^10.0.0 \
+    @nestjs/config@^2.3.0 \
+    @nestjs/core@^9.0.0 \
+    @nestjs/jwt@^9.0.0 \
+    @nestjs/mongoose@^9.2.0 \
+    @nestjs/passport@^9.0.3 \
+    @nestjs/platform-express@^9.0.0 \
+    @nestjs/platform-socket.io@^9.4.0 \
+    @nestjs/schedule@^2.1.0 \
+    @nestjs/serve-static@3.0.1 \
+    @nestjs/typeorm@^9.0.1 \
+    @nestjs/websockets@^9.4.0 \
+    @nestjs/bullmq@^1.1.0 \
+    @nestjs/cache-manager@^2.2.0 \
+    @nestjs/mapped-types@^1.2.2 \
+    
+    # Database & ORM
+    typeorm@^0.3.12 \
+    mongoose@^7.0.3 \
+    @clickhouse/client@^1.4.0 \
+    pg@^8.7.3 \
+    pg-copy-streams@^6.0.6 \
+    pg-cursor@^2.8.0 \
+    pg-query-stream@^4.5.5 \
+    mysql2@^2.3.3 \
+    
+    # Caching & Queue
+    bullmq@^3.10.3 \
+    cache-manager@^5.4.0 \
+    cache-manager-ioredis-yet@^1.2.2 \
+    cache-manager-redis-store@^3.0.1 \
+    cache-manager-redis-yet@^4.1.2 \
+    redis@^4.6.7 \
+    redlock@^5.0.0-beta.2 \
+    
+    # Authentication & Security
+    passport@^0.5.3 \
+    passport-headerapikey@^1.2.2 \
+    passport-jwt@^4.0.0 \
+    passport-local@^1.0.0 \
+    bcrypt@^5.0.1 \
+    bcryptjs@^2.4.3 \
+    
+    # Email & Communication
+    @sendgrid/eventwebhook@^8.0.0 \
+    @sendgrid/mail@^7.7.0 \
+    mailgun.js@^8.2.1 \
+    nodemailer@^6.5.0 \
+    twilio@^3.84.0 \
+    
+    # Monitoring & Logging
+    @sentry/cli@^2.21.2 \
+    @sentry/node@^7.73.0 \
+    @sentry/profiling-node@^1.2.1 \
+    @sentry/tracing@^7.102.1 \
+    winston@^3.8.1 \
+    winston-papertrail@^1.0.5 \
+    winston-syslog@^2.6.0 \
+    morgan@1.10.0 \
+    nest-morgan-logger@1.0.2 \
+    nest-raven@^10.0.0 \
+    nest-winston@^1.6.2 \
+    
+    # Utilities & Helpers
+    class-transformer@^0.5.1 \
+    class-validator@^0.13.2 \
+    class-sanitizer@^1.0.1 \
+    lodash@^4.17.21 \
+    date-fns@^2.30.0 \
+    rxjs@^7.2.0 \
+    reflect-metadata@^0.1.13 \
+    
+    # File Processing
+    csv-parse@^5.3.5 \
+    fast-csv@^4.3.6 \
+    multer@^1.4.5-lts.1 \
+    
+    # External Services
+    @slack/oauth@^2.5.4 \
+    @slack/web-api@^6.7.2 \
+    firebase-admin@^11.6.0 \
+    stripe@^15.7.0 \
+    aws-sdk@^2.1354.0 \
+    posthog-node@^2.5.4 \
+    
+    # Additional Dependencies
+    @dagrejs/graphlib@^2.1.13 \
+    @js-temporal/polyfill@^0.4.4 \
+    amqplib@^0.10.4 \
+    form-data@^4.0.0 \
+    kafkajs@^2.2.4 \
+    klona@2.0.6 \
+    liquidjs@^9.42.0 \
+    resend@^2.1.0 \
+    socket.io-client@^4.6.1 \
+    svix@^1.15.0 \
+    sync-fetch@^0.4.2 \
+    traverse@0.6.7 \
+    undici@^5.21.0 \
+    
+    # UI and React Dependencies
+    @emotion/react@11.9.3 \
+    @emotion/styled@11.9.3 \
+    @good-ghosting/random-name-generator@^1.0.3 \
+    @headlessui/react@^1.7.3 \
+    @heroicons/react@^2.0.12 \
+    @lottiefiles/react-lottie-player@^3.5.3 \
+    @material-tailwind/react@^1.2.4 \
+    @mui/icons-material@^5.8.4 \
+    @mui/lab@^5.0.0-alpha.89 \
+    @mui/material@5.11.0 \
+    @pmmmwh/react-refresh-webpack-plugin@^0.5.3 \
+    @react-oauth/google@^0.2.6 \
+    @reduxjs/toolkit@^1.9.5 \
+    @sentry/react@^7.73.0 \
+    antd@^5.14.2 \
+    grapesjs@^0.19.5 \
+    react@^18.2.0 \
+    react-dom@18.2.0 \
+    react-router-dom@6.3.0 \
+    reactflow@^11.5.6 \
+    redux@4.2.0 \
+    
+    # Development Dependencies
+    @4tw/cypress-drag-drop@^2.2.1 \
+    @nestjs/schematics@^9.0.0 \
+    @types/cron@^2.0.0 \
+    @types/express@^4.17.13 \
+    @types/jest@27.5.2 \
+    @types/lodash@^4.14.184 \
+    @typescript-eslint/eslint-plugin@^5.39.0 \
+    @typescript-eslint/parser@^5.39.0 \
+    cypress@12.9.0 \
+    dotenv@16.0.3 \
+    eslint@^8.24.0 \
+    prettier@^2.7.1 \
+    
+    # Additional Dependencies
+    @databricks/sql@1.0.0 \
+    @sendgrid/client@^7.7.0 \
+    rimraf@^3.0.2
+
+# Create TypeORM config
 COPY --chown=appuser:appuser --from=backend /app/packages/server/dist ./dist/
 COPY --chown=appuser:appuser --from=backend /app/packages/server/node_modules ./node_modules/
 COPY --chown=appuser:appuser --from=backend /app/packages/server/src/data-source.ts ./packages/server/src/
 COPY --chown=appuser:appuser scripts ./scripts/
 COPY --chown=appuser:appuser packages/server/migrations/* ./migrations/
 
-# Create package.json with type: module
-RUN echo '{"type":"module"}' > package.json && \
-    chown appuser:appuser package.json
+# Copy frontend build
+COPY --chown=appuser:appuser --from=frontend /app/packages/client/build ./client/
+COPY --chown=appuser:appuser --from=frontend /app/SENTRY_RELEASE ./SENTRY_RELEASE
 
 USER appuser
 
-# Set environment without experimental flags
-ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
+ENV PORT=3000 \
+    NODE_ENV=${NODE_ENV:-production} \
+    FORCE_HTTPS=false \
+    LAUDSPEAKER_PROCESS_TYPE=WEB \
+    PATH="/home/appuser/.npm-global/bin:$PATH" \
     NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
-    NODE_ENV=production
+    TYPEORM_CONFIG=/app/typeorm.config.cjs \
+    TS_NODE_PROJECT=tsconfig.json \
+    JWT_KEY=h1E8OZF6TcLfofpWjQxS5sNRgRb9Mgc33dtYtBr1mAkqn7vXiIU4PKy2CDVz0GeY \
+    JWT_EXPIRES=365d
 
-# Install global packages without ESM
-RUN unset NODE_OPTIONS && \
-    npm config set prefix '/home/appuser/.npm-global' && \
-    npm install -g typescript@4.9.5 && \
-    npm install -g tslib@2.6.2 && \
-    npm install -g ts-node@10.9.1 && \
-    npm install -g typeorm@0.3.17 && \
-    npm install -g clickhouse-migrations@1.0.0 && \
-    npm install -g @types/node@18.18.0
-
-# Now set NODE_OPTIONS for runtime
-ENV NODE_OPTIONS="--es-module-specifier-resolution=node"
+# Install global packages
+RUN npm config set prefix '/home/appuser/.npm-global' && \
+    npm install -g \
+    typescript@4.9.5 \
+    tslib@2.6.2 \
+    ts-node@10.9.1 \
+    typeorm@0.3.17 \
+    @types/node@18.18.0 \
+    class-transformer@0.5.1 \
+    class-validator@0.14.0 \
+    @laudspeaker/clickhouse-migrations@1.0.1 \
+    clickhouse-migrations@latest
 
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \

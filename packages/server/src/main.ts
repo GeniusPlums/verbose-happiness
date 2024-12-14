@@ -91,24 +91,26 @@ if (cluster.isPrimary) {
     let app;
 
     if (process.env.LAUDSPEAKER_PROCESS_TYPE == 'WEB') {
-      const httpsOptions = {
-        key:
-          parseInt(process.env.PORT) == 443
-            ? readFileSync(process.env.KEY_PATH, 'utf8')
-            : null,
-        cert:
-          parseInt(process.env.PORT) == 443
-            ? readFileSync(process.env.CERT_PATH, 'utf8')
-            : null,
-      };
+      let httpsOptions = undefined;
+      
+      // On Render, SSL is handled by their proxy
+      // Only configure HTTPS if explicitly required and certs are provided
+      if (process.env.FORCE_HTTPS === 'true' && process.env.KEY_PATH && process.env.CERT_PATH) {
+        httpsOptions = {
+          key: readFileSync(process.env.KEY_PATH, 'utf8'),
+          cert: readFileSync(process.env.CERT_PATH, 'utf8'),
+          minVersion: 'TLSv1.2',
+          maxVersion: 'TLSv1.3',
+          ciphers: 'HIGH:!aNULL:!MD5'
+        };
+      }
 
       app = await NestFactory.create(
         AppModule,
         new ExpressAdapter(expressApp),
         {
           rawBody: true,
-          httpsOptions:
-            parseInt(process.env.PORT) == 443 ? httpsOptions : undefined,
+          httpsOptions
         }
       );
 
