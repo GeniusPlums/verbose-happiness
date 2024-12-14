@@ -227,19 +227,33 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
         secureProtocol: 'TLSv1_2_method'
       }
     }),
-    IntegrationsModule,
-    CustomersModule,
-    TemplatesModule,
-    SlackModule,
-    WebhookJobsModule,
-    AccountsModule,
-    EventsModule,
-    ModalsModule,
-    WebsocketsModule,
-    StepsModule,
-    JourneysModule,
-    SegmentsModule,
-    RedlockModule,
-    RavenModule,
-    KafkaModule,
-    Or
+      IntegrationsModule,
+      CustomersModule,
+      TemplatesModule,
+      SlackModule,
+      WebhookJobsModule,
+      AccountsModule,
+      EventsModule,
+      ModalsModule,
+      WebsocketsModule,
+      StepsModule,
+      JourneysModule,
+      SegmentsModule,
+      RedlockModule,
+      RavenModule,
+      KafkaModule,
+      OrganizationsModule,
+      ChannelsModule
+    ],
+    controllers: [AppController],
+    providers: getProvidersList(),
+  })
+  export class AppModule {
+    configure(consumer: MiddlewareConsumer) {
+      consumer
+        .apply(AuthMiddleware)
+        .forRoutes(EventsController)
+        .apply(SlackMiddleware)
+        .forRoutes({ path: '/slack/events', method: RequestMethod.POST });
+    }
+  }
