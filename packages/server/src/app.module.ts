@@ -133,26 +133,28 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
       ]
       : []),
     MongooseModule.forRoot(formatMongoConnectionString(process.env.MONGODB_URI), {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      retryAttempts: 3,
-      connectTimeoutMS: 10000,
-      socketTimeoutMS: 45000,
-      ssl: process.env.NODE_ENV === 'production',
-      sslValidate: false,
-      tls: true,
-      tlsInsecure: true,
-      socket: {
-        tls: process.env.NODE_ENV === 'production' && {
-          minVersion: 'TLSv1.2',
-          maxVersion: 'TLSv1.3',
-          rejectUnauthorized: false,
-          ciphers: 'TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:ECDHE-RSA-AES128-GCM-SHA256',
-          secureProtocol: 'TLSv1_2_method',
-          servername: process.env.MONGODB_HOST
-        }
-      }
-    }),
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  retryAttempts: 3,
+  connectTimeoutMS: 10000,
+  socketTimeoutMS: 45000,
+  // SSL Configuration
+  ssl: true,
+  sslValidate: false,
+  tls: true,
+  tlsInsecure: true,
+  directConnection: true,
+  socket: {
+    tls: true,
+    servername: process.env.MONGODB_HOST,
+    rejectUnauthorized: false,
+    checkServerIdentity: () => undefined,
+    minVersion: 'TLSv1',  // Try with TLSv1 to allow fallback
+    maxVersion: 'TLSv1.3',
+    ciphers: 'ALL',  // Allow all ciphers for maximum compatibility
+    secureProtocol: 'TLS_method'  // Use dynamic method instead of specific version
+  }
+}),
     CacheModule.registerAsync({
       isGlobal: true,
       useFactory: async () => ({
