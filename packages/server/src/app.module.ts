@@ -132,7 +132,7 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
         }),
       ]
       : []),
-    MongooseModule.forRoot(process.env.MONGODB_URI, {
+    MongooseModule.forRoot(formatMongoConnectionString(process.env.MONGODB_URI), {
       useNewUrlParser: true,
       useUnifiedTopology: true,
       retryAttempts: 3,
@@ -147,6 +147,8 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
           minVersion: 'TLSv1.2',
           maxVersion: 'TLSv1.3',
           rejectUnauthorized: false,
+          ciphers: 'TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:ECDHE-RSA-AES128-GCM-SHA256',
+          secureProtocol: 'TLSv1_2_method',
           servername: process.env.MONGODB_HOST
         }
       }
@@ -220,7 +222,9 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
       ssl: { 
         rejectUnauthorized: false,
         minVersion: 'TLSv1.2',
-        maxVersion: 'TLSv1.3'
+        maxVersion: 'TLSv1.3',
+        ciphers: 'TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:ECDHE-RSA-AES128-GCM-SHA256',
+        secureProtocol: 'TLSv1_2_method'
       }
     }),
     IntegrationsModule,
@@ -238,18 +242,4 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
     RedlockModule,
     RavenModule,
     KafkaModule,
-    OrganizationsModule,
-    ChannelsModule
-  ],
-  controllers: [AppController],
-  providers: getProvidersList(),
-})
-export class AppModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(AuthMiddleware)
-      .forRoutes(EventsController)
-      .apply(SlackMiddleware)
-      .forRoutes({ path: '/slack/events', method: RequestMethod.POST });
-  }
-}
+    Or
