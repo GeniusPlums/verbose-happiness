@@ -2,6 +2,7 @@ import axios from "axios";
 import { ApiConfig, AppConfig } from "../constants";
 import TokenService from "./token.service";
 import config, { API_BASE_URL_KEY } from "config";
+import https from "https"; // Add this line
 
 export interface ApiServiceArgs<T extends Record<string, any>> {
   url: string;
@@ -17,6 +18,11 @@ const instance = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  // For Render deployment - trust their SSL termination
+  httpsAgent: process.env.NODE_ENV === 'development' ? 
+    new https.Agent({
+      rejectUnauthorized: false // Allow self-signed certs in development
+    }) : undefined // Use default agent in production (Render handles SSL)
 });
 instance.interceptors.request.use(
   (conf) => {
