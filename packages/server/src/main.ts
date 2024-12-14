@@ -100,8 +100,9 @@ if (cluster.isPrimary) {
           rawBody: true,
           httpsOptions: process.env.NODE_ENV === 'production' ? {
             rejectUnauthorized: true,
-            minVersion: 'TLSv1.2',
-            ciphers: 'HIGH:!aNULL:!MD5'
+            cert: process.env.CERT_PATH ? readFileSync(process.env.CERT_PATH, 'utf8') : undefined,
+            key: process.env.KEY_PATH ? readFileSync(process.env.KEY_PATH, 'utf8') : undefined,
+            ca: process.env.CA_PATH ? readFileSync(process.env.CA_PATH, 'utf8') : undefined
           } : {
             rejectUnauthorized: false,
             key: process.env.KEY_PATH ? readFileSync(process.env.KEY_PATH, 'utf8') : undefined,
