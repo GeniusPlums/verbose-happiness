@@ -86,13 +86,6 @@ RUN cd packages/client && \
 FROM node:18-slim AS backend
 WORKDIR /app
 
-# Install SSL certificates and other necessary packages
-RUN apt-get update && \
-    apt-get install -y \
-    ca-certificates \
-    openssl \
-    && rm -rf /var/lib/apt/lists/*
-
 # Create TypeScript declarations first
 RUN mkdir -p /app/packages/server/src/@types && \
     echo 'import { User } from "../entities/user.entity";\n\
@@ -111,16 +104,20 @@ COPY --from=base /app ./
 COPY package*.json ./
 COPY packages/server/package*.json ./packages/server/
 
+# Install dependencies first
+RUN cd packages/server && \
+    npm ci
+
 # Copy server source
 COPY packages/server ./packages/server
 
-# Install dependencies and build
+# Build with environment variables
 RUN cd packages/server && \
-    npm ci && \
+    NODE_ENV=production \
     npm run build
 
 # Final stage
-FROM node:18-slim AS final
+FROM node:18-slim
 WORKDIR /app
 
 # Install necessary packages including SSL support
@@ -356,22 +353,15 @@ COPY --chown=appuser:appuser --from=frontend /app/SENTRY_RELEASE ./SENTRY_RELEAS
 
 USER appuser
 
-ENV PATH="/home/appuser/.npm-global/bin:$PATH" \
-    NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
+ENV PORT=3000 \
     NODE_ENV=production \
+    FORCE_HTTPS=false \
+    LAUDSPEAKER_PROCESS_TYPE=WEB \
+    PATH="/home/appuser/.npm-global/bin:$PATH" \
+    NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
     TYPEORM_CONFIG=/app/typeorm.config.cjs \
     TS_NODE_PROJECT=tsconfig.json \
-    JWT_KEY=h1E8OZF6TcLfofpWjQxS5sNRgRb9Mgc33dtYtBr1mAkqn7vXiIU4PKy2CDVz0GeY \
-    JWT_EXPIRES=365d \
-    NODE_OPTIONS="--tls-min-v1.2 --tls-max-v1.3" \
-    MONGODB_SSL=true \
-    MONGODB_TLS=true \
-    MONGODB_TLS_INSECURE=true \
-    MONGODB_DIRECT_CONNECTION=true \
-    MONGODB_ALLOW_INVALID_CERTS=true \
-    MONGODB_ALLOW_INVALID_HOSTNAMES=true \
-    MONGODB_TLS_PROTOCOL=TLS_method \
-    MONGODB_REJECT_UNAUTHORIZED=false
+    JWT_KEY=h1E8OZF6TcLfofpWjQxS5sNRgRb9Mgc33dtYtBr1mAkqn7vXiIU4PKy2CDVz0GeY
 
 # Install global packages
 RUN npm config set prefix '/home/appuser/.npm-global' && \
