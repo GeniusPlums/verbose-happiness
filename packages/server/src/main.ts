@@ -91,20 +91,25 @@ if (cluster.isPrimary) {
     let app;
 
     if (process.env.LAUDSPEAKER_PROCESS_TYPE == 'WEB') {
-      const httpsOptions = {
-        key: process.env.KEY_PATH ? readFileSync(process.env.KEY_PATH, 'utf8') : null,
-        cert: process.env.CERT_PATH ? readFileSync(process.env.CERT_PATH, 'utf8') : null,
-        minVersion: 'TLSv1.2',
-        maxVersion: 'TLSv1.3',
-        ciphers: 'HIGH:!aNULL:!MD5'
-      };
+      let httpsOptions = undefined;
+      
+      // Only configure HTTPS if certificates are provided and not in development
+      if (process.env.KEY_PATH && process.env.CERT_PATH && process.env.NODE_ENV !== 'development') {
+        httpsOptions = {
+          key: readFileSync(process.env.KEY_PATH, 'utf8'),
+          cert: readFileSync(process.env.CERT_PATH, 'utf8'),
+          minVersion: 'TLSv1.2',
+          maxVersion: 'TLSv1.3',
+          ciphers: 'HIGH:!aNULL:!MD5'
+        };
+      }
 
       app = await NestFactory.create(
         AppModule,
         new ExpressAdapter(expressApp),
         {
           rawBody: true,
-          httpsOptions: process.env.KEY_PATH && process.env.CERT_PATH ? httpsOptions : undefined,
+          httpsOptions
         }
       );
 
