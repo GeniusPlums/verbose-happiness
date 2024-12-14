@@ -138,21 +138,22 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
   retryAttempts: 3,
   connectTimeoutMS: 10000,
   socketTimeoutMS: 45000,
-  // SSL Configuration
   ssl: true,
-  sslValidate: false,
   tls: true,
   tlsInsecure: true,
   directConnection: true,
   socket: {
-    tls: true,
-    servername: process.env.MONGODB_HOST,
-    rejectUnauthorized: false,
-    checkServerIdentity: () => undefined,
-    minVersion: 'TLSv1',  // Try with TLSv1 to allow fallback
-    maxVersion: 'TLSv1.3',
-    ciphers: 'ALL',  // Allow all ciphers for maximum compatibility
-    secureProtocol: 'TLS_method'  // Use dynamic method instead of specific version
+    tls: {
+      secureProtocol: 'TLSv1_2_method',  // Specifically use TLS 1.2
+      rejectUnauthorized: false,
+      servername: process.env.MONGODB_HOST,
+      ciphers: [
+        'ECDHE-ECDSA-AES128-GCM-SHA256',
+        'ECDHE-RSA-AES128-GCM-SHA256',
+        'ECDHE-ECDSA-AES256-GCM-SHA384',
+        'ECDHE-RSA-AES256-GCM-SHA384'
+      ].join(':'),
+    }
   }
 }),
     CacheModule.registerAsync({
