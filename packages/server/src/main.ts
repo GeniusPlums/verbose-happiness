@@ -18,6 +18,7 @@ import { TLSSocket } from 'tls';
 import { SecureContextOptions } from 'tls';
 import * as tls from 'tls';
 import * as constants from 'constants';
+import { ServerOptions } from 'https';
 
 const morgan = require('morgan');
 
@@ -99,15 +100,18 @@ if (cluster.isPrimary) {
         {
           rawBody: true,
           httpsOptions: process.env.NODE_ENV === 'production' ? {
-            rejectUnauthorized: true,
             cert: process.env.CERT_PATH ? readFileSync(process.env.CERT_PATH, 'utf8') : undefined,
             key: process.env.KEY_PATH ? readFileSync(process.env.KEY_PATH, 'utf8') : undefined,
-            ca: process.env.CA_PATH ? readFileSync(process.env.CA_PATH, 'utf8') : undefined
-          } : {
-            rejectUnauthorized: false,
-            key: process.env.KEY_PATH ? readFileSync(process.env.KEY_PATH, 'utf8') : undefined,
-            cert: process.env.CERT_PATH ? readFileSync(process.env.CERT_PATH, 'utf8') : undefined
-          }
+            minVersion: 'TLSv1.2',
+            maxVersion: 'TLSv1.3',
+            ciphers: [
+              'TLS_AES_256_GCM_SHA384',
+              'TLS_CHACHA20_POLY1305_SHA256',
+              'TLS_AES_128_GCM_SHA256',
+              'ECDHE-RSA-AES256-GCM-SHA384',
+              'ECDHE-RSA-AES128-GCM-SHA256'
+            ].join(':')
+          } as ServerOptions : undefined
         }
       );
 

@@ -132,41 +132,21 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
       isGlobal: true,
     }),
     MongooseModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        uri: configService.get<string>('MONGODB_URI'),
+        ssl: process.env.NODE_ENV === 'production',
+        tls: process.env.NODE_ENV === 'production',
+        tlsCAFile: undefined,
+        retryWrites: true,
+        w: 'majority',
+        retryAttempts: 5,
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+      }),
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
-        const config = configService.get('mongodb');
-        return {
-          uri: formatMongoConnectionString(config.uri),
-          useNewUrlParser: true,
-          useUnifiedTopology: true,
-          retryAttempts: config.retryAttempts,
-          connectTimeoutMS: config.connectTimeoutMS,
-          socketTimeoutMS: config.socketTimeoutMS,
-          ssl: config.ssl,
-          tls: config.tls,
-          tlsInsecure: config.tlsInsecure,
-          directConnection: config.directConnection,
-          tlsAllowInvalidCertificates: config.allowInvalidCerts,
-          tlsAllowInvalidHostnames: config.allowInvalidHostnames,
-          socket: {
-            tls: {
-              secureProtocol: config.tlsProtocol,
-              minVersion: config.tlsMinVersion,
-              maxVersion: config.tlsMaxVersion,
-              rejectUnauthorized: config.rejectUnauthorized,
-              servername: config.host,
-              ciphers: config.ciphers || [
-                'ECDHE-ECDSA-AES128-GCM-SHA256',
-                'ECDHE-RSA-AES128-GCM-SHA256',
-                'ECDHE-ECDSA-AES256-GCM-SHA384',
-                'ECDHE-RSA-AES256-GCM-SHA384',
-                'AES256-GCM-SHA384',
-                'AES128-GCM-SHA256'
-              ].join(':')
-            }
-          }
-        };
-      },
     }),
     CacheModule.registerAsync({
       inject: [ConfigService],
