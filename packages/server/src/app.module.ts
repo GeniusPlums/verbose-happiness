@@ -53,6 +53,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { HealthCheckService } from './app.healthcheck.service';
 import { QueueModule } from '@/common/services/queue/queue.module';
 import { ClickHouseModule } from '@/common/services/clickhouse/clickhouse.module';
+import { ChannelsModule } from './api/channels/channels.module';
 import { TlsOptions } from 'tls';
 
 const sensitiveKeys = [/cookie/i, /passw(or)?d/i, /^pw$/i, /^pass$/i, /secret/i, /token/i, /api[-._]?key/i];
@@ -238,7 +239,7 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
     RavenModule,
     KafkaModule,
     OrganizationsModule,
-    ChannelsModule,
+    ChannelsModule
   ],
   controllers: [AppController],
   providers: getProvidersList(),
