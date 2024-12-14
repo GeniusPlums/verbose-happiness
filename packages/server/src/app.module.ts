@@ -54,6 +54,7 @@ import { HealthCheckService } from './app.healthcheck.service';
 import { QueueModule } from '@/common/services/queue/queue.module';
 import { ClickHouseModule } from '@/common/services/clickhouse/clickhouse.module';
 import { ChannelsModule } from './api/channels/channels.module';
+import { TlsOptions } from 'tls';
 
 const sensitiveKeys = [/cookie/i, /passw(or)?d/i, /^pw$/i, /^pass$/i, /secret/i, /token/i, /api[-._]?key/i];
 
@@ -142,6 +143,17 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
       retryAttempts: 3,
       connectTimeoutMS: 10000,
       socketTimeoutMS: 45000,
+      ssl: process.env.NODE_ENV === 'production',
+      sslValidate: false,
+      tls: true,
+      tlsInsecure: true,
+      socket: {
+        tls: process.env.NODE_ENV === 'production' && {
+          minVersion: 'TLSv1.2',
+          maxVersion: 'TLSv1.3',
+          rejectUnauthorized: false
+        }
+      }
     }),
     CacheModule.registerAsync({
       isGlobal: true,
@@ -209,7 +221,11 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
       database: process.env.CLICKHOUSE_DB,
       max_open_connections: 10,
       keep_alive: { enabled: true },
-      ssl: { rejectUnauthorized: false }
+      ssl: { 
+        rejectUnauthorized: false,
+        minVersion: 'TLSv1.2',
+        maxVersion: 'TLSv1.3'
+      }
     }),
     IntegrationsModule,
     CustomersModule,
