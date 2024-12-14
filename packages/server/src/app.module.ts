@@ -138,21 +138,37 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
   retryAttempts: 3,
   connectTimeoutMS: 10000,
   socketTimeoutMS: 45000,
+  // Base SSL/TLS settings
   ssl: true,
   tls: true,
   tlsInsecure: true,
   directConnection: true,
+  tlsAllowInvalidCertificates: true,
+  tlsAllowInvalidHostnames: true,
+  // Socket configuration
   socket: {
     tls: {
-      secureProtocol: 'TLSv1_2_method',  // Specifically use TLS 1.2
+      // Protocol settings
+      secureProtocol: 'TLS_method',
+      minVersion: 'TLSv1.2',
+      maxVersion: 'TLSv1.3',
       rejectUnauthorized: false,
       servername: process.env.MONGODB_HOST,
+      checkServerIdentity: () => undefined, // Bypass hostname checks
+      // Comprehensive cipher suite
       ciphers: [
+        // Modern GCM ciphers
         'ECDHE-ECDSA-AES128-GCM-SHA256',
         'ECDHE-RSA-AES128-GCM-SHA256',
         'ECDHE-ECDSA-AES256-GCM-SHA384',
-        'ECDHE-RSA-AES256-GCM-SHA384'
-      ].join(':'),
+        'ECDHE-RSA-AES256-GCM-SHA384',
+        // Fallback GCM ciphers
+        'AES256-GCM-SHA384',
+        'AES128-GCM-SHA256',
+        // Legacy fallback (if needed)
+        'AES256-SHA256',
+        'AES128-SHA256'
+      ].join(':')
     }
   }
 }),
