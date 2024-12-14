@@ -59,7 +59,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { mongodbConfig, redisConfig } from './config/configuration';
 import { HttpModule } from '@nestjs/axios';
 import * as https from 'https';
-import * as tls from 'tls';
 import * as constants from 'constants';
 
 const sensitiveKeys = [/cookie/i, /passw(or)?d/i, /^pw$/i, /^pass$/i, /secret/i, /token/i, /api[-._]?key/i];
@@ -247,8 +246,8 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
     HttpModule.register({
       httpsAgent: new https.Agent({
         rejectUnauthorized: process.env.NODE_ENV !== 'development',
-        secureOptions: constants.SSL_OP_NO_TLSv1 | constants.SSL_OP_NO_TLSv1_1,
-        minVersion: 'TLSv1.2'
+        minVersion: 'TLSv1.2',
+        ciphers: 'HIGH:!aNULL:!MD5'
       })
     }),
     IntegrationsModule,
