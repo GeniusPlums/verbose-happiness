@@ -20,45 +20,31 @@ RUN ls -la /app/package.json || echo "No package.json in base"
 
 # Frontend build stage
 FROM node:18-slim AS frontend
-ARG EXTERNAL_URL
-ARG FRONTEND_SENTRY_AUTH_TOKEN
-ARG FRONTEND_SENTRY_ORG=laudspeaker-rb
-ARG FRONTEND_SENTRY_PROJECT=javascript-react
-ARG FRONTEND_SENTRY_DSN_URL=https://2444369e8e13b39377ba90663ae552d1@o4506038702964736.ingest.sentry.io/4506038705192960
-ARG REACT_APP_POSTHOG_HOST
-ARG REACT_APP_POSTHOG_KEY
-ARG REACT_APP_ONBOARDING_API_KEY
-
-# Install SSL certificates
-RUN apt-get update && \
-    apt-get install -y \
-    ca-certificates \
-    openssl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set build-time environment variables
-ENV SENTRY_AUTH_TOKEN=${FRONTEND_SENTRY_AUTH_TOKEN} \
-    SENTRY_ORG=${FRONTEND_SENTRY_ORG} \
-    SENTRY_PROJECT=${FRONTEND_SENTRY_PROJECT} \
-    REACT_APP_SENTRY_DSN_URL_FRONTEND=${FRONTEND_SENTRY_DSN_URL} \
-    REACT_APP_WS_BASE_URL=${EXTERNAL_URL} \
-    REACT_APP_POSTHOG_HOST=${REACT_APP_POSTHOG_HOST} \
-    REACT_APP_POSTHOG_KEY=${REACT_APP_POSTHOG_KEY} \
-    REACT_APP_ONBOARDING_API_KEY=${REACT_APP_ONBOARDING_API_KEY} \
-    NODE_OPTIONS="--max-old-space-size=4096" \
-    NODE_ENV=production \
-    TS_NODE_TRANSPILE_ONLY=true
-
 WORKDIR /app
+
+# Copy base files
 COPY --from=base /app ./
+
+# Install dependencies first (this helps with caching)
+COPY package*.json ./
+COPY packages/client/package*.json ./packages/client/
+
+# Update npm and install dependencies
+RUN npm install -g npm@10.9.2 && \
+    cd packages/client && \
+    npm install && \
+    npm install --save-dev @babel/plugin-proposal-private-property-in-object @types/react-helmet && \
+    npm install --save react-helmet @nestjs/axios@3.1.3
+
+# Copy client source
 COPY packages/client ./packages/client
 
-# Install frontend dependencies and build
+# Create TypeScript declaration file
 RUN cd packages/client && \
-    npm ci --legacy-peer-deps && \
-    npm install --save-dev @babel/plugin-proposal-private-property-in-object @types/react-helmet && \
-    npm install --save react-helmet && \
-    echo "declare module 'react-helmet';" > react-helmet.d.ts && \
+    echo "declare module 'react-helmet';" > react-helmet.d.ts
+
+# Set environment variables and build
+RUN cd packages/client && \
     echo "REACT_APP_API_URL=${EXTERNAL_URL:-http://localhost:3000}" > .env.prod && \
     echo "REACT_APP_WS_BASE_URL=${EXTERNAL_URL:-http://localhost:3000}" >> .env.prod && \
     echo "REACT_APP_POSTHOG_HOST=${REACT_APP_POSTHOG_HOST:-}" >> .env.prod && \
@@ -86,27 +72,17 @@ RUN cd packages/client && \
 FROM node:18-slim AS backend
 WORKDIR /app
 
-# Create TypeScript declarations first
-RUN mkdir -p /app/packages/server/src/@types && \
-    echo 'import { User } from "../entities/user.entity";\n\
-\n\
-declare global {\n\
-  namespace Express {\n\
-    interface Request {\n\
-      user?: User;\n\
-    }\n\
-    interface User extends User {}\n\
-  }\n\
-}' > /app/packages/server/src/@types/express.d.ts
-
-# Copy base files including package.json
+# Copy base files
 COPY --from=base /app ./
+
+# Install dependencies first (this helps with caching)
 COPY package*.json ./
 COPY packages/server/package*.json ./packages/server/
 
-# Install dependencies first
-RUN cd packages/server && \
-    npm ci
+# Update npm and install dependencies
+RUN npm install -g npm@10.9.2 && \
+    cd packages/server && \
+    npm install
 
 # Copy server source
 COPY packages/server ./packages/server
