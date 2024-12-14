@@ -1,10 +1,7 @@
 import p from '../package.json';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import {
-  ExpressAdapter,
-  NestExpressApplication,
-} from '@nestjs/platform-express';
+import { ExpressAdapter, NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { urlencoded } from 'body-parser';
@@ -16,8 +13,9 @@ import { setInterval as originalSetInterval } from 'timers';
 import express from 'express';
 import cluster from 'cluster';
 import * as os from 'os';
-import * as https from 'https'; // Import https module
+import * as https from 'https'; 
 import { TLSSocket } from 'tls';
+import { SecureContextOptions } from 'tls';
 
 const morgan = require('morgan');
 
@@ -101,12 +99,11 @@ if (cluster.isPrimary) {
           httpsOptions: process.env.NODE_ENV === 'production' ? undefined : {
             key: process.env.KEY_PATH ? readFileSync(process.env.KEY_PATH, 'utf8') : undefined,
             cert: process.env.CERT_PATH ? readFileSync(process.env.CERT_PATH, 'utf8') : undefined,
-            secureOptions: (TLSSocket as any).TLS_OP_NO_TLSv1 | 
-                         (TLSSocket as any).TLS_OP_NO_TLSv1_1 |
-                         require('constants').SSL_OP_NO_SSLv2 |
-                         require('constants').SSL_OP_NO_SSLv3,
-            ciphers: 'HIGH:!aNULL:!MD5'
-          }
+            ...process.env.NODE_ENV !== 'production' && {
+              rejectUnauthorized: false,
+              requestCert: false
+            }
+          } as SecureContextOptions
         }
       );
 

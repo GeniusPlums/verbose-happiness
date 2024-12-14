@@ -246,11 +246,7 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
     HttpModule.register({
       httpsAgent: process.env.NODE_ENV === 'production' ? undefined : new https.Agent({
         rejectUnauthorized: false,
-        secureOptions: (TLSSocket as any).TLS_OP_NO_TLSv1 | 
-                      (TLSSocket as any).TLS_OP_NO_TLSv1_1 |
-                      require('constants').SSL_OP_NO_SSLv2 |
-                      require('constants').SSL_OP_NO_SSLv3,
-        ciphers: 'HIGH:!aNULL:!MD5'
+        requestCert: false
       })
     }),
     IntegrationsModule,
