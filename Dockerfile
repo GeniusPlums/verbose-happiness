@@ -82,7 +82,8 @@ COPY packages/server/package*.json ./packages/server/
 # Update npm and install dependencies
 RUN npm install -g npm@10.9.2 && \
     cd packages/server && \
-    npm install
+    npm install && \
+    npm install @nestjs/axios@3.1.3
 
 # Copy server source
 COPY packages/server ./packages/server
