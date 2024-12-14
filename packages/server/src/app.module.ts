@@ -53,7 +53,6 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { HealthCheckService } from './app.healthcheck.service';
 import { QueueModule } from '@/common/services/queue/queue.module';
 import { ClickHouseModule } from '@/common/services/clickhouse/clickhouse.module';
-import { ChannelsModule } from './api/channels/channels.module';
 import { TlsOptions } from 'tls';
 
 const sensitiveKeys = [/cookie/i, /passw(or)?d/i, /^pw$/i, /^pass$/i, /secret/i, /token/i, /api[-._]?key/i];
@@ -117,12 +116,7 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
     ctx = JSON.parse(info.context as string);
   } catch (e) { }
 
-  return `[${info.timestamp}] [${info.level}] [${process.env.LAUDSPEAKER_PROCESS_TYPE}-${process.pid}]${ctx?.class ? ' [Class: ' + ctx?.class + ']' : ''
-    }${ctx?.method ? ' [Method: ' + ctx?.method + ']' : ''}${ctx?.session ? ' [User: ' + ctx?.user + ']' : ''
-    }${ctx?.session ? ' [Session: ' + ctx?.session + ']' : ''}: ${info.message
-    } ${info.stack ? '{stack: ' + info.stack : ''} ${ctx.cause ? 'cause: ' + ctx.cause : ''
-    } ${ctx.message ? 'message: ' + ctx.message : ''} ${ctx.name ? 'name: ' + ctx.name + '}' : ''
-    }`;
+  return `[${info.timestamp}] [${info.level}] [${process.env.LAUDSPEAKER_PROCESS_TYPE}-${process.pid}]${ctx?.class ? ' [Class: ' + ctx?.class + ']' : ''}${ctx?.method ? ' [Method: ' + ctx?.method + ']' : ''}${ctx?.session ? ' [User: ' + ctx?.user + ']' : ''}${ctx?.session ? ' [Session: ' + ctx?.session + ']' : ''}: ${info.message} ${info.stack ? '{stack: ' + info.stack : ''} ${ctx.cause ? 'cause: ' + ctx.cause : ''} ${ctx.message ? 'message: ' + ctx.message : ''} ${ctx.name ? 'name: ' + ctx.name + '}' : ''}`;
 });
 
 @Module({
@@ -137,47 +131,38 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
         }),
       ]
       : []),
-    // MongoDB TLS Configuration
-MongooseModule.forRoot(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  retryAttempts: 3,
-  connectTimeoutMS: 10000,
-  socketTimeoutMS: 45000,
-  ssl: process.env.NODE_ENV === 'production',
-  sslValidate: false,
-  tls: true,
-  tlsInsecure: true,
-  socket: {
-    tls: process.env.NODE_ENV === 'production' && {
-      minVersion: 'TLSv1.2',
-      maxVersion: 'TLSv1.3',
-      rejectUnauthorized: false,
-      servername: process.env.MONGODB_HOST,
-      // Add secure ciphers
-      ciphers: 'TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384',
-      secureProtocol: 'TLSv1_2_method'
-    }
-  }
-}),
-
-// ClickHouse TLS Configuration
-ClickHouseModule.register({
-  url: `https://${process.env.CLICKHOUSE_HOST}:${process.env.CLICKHOUSE_PORT}`,
-  username: process.env.CLICKHOUSE_USER,
-  password: process.env.CLICKHOUSE_PASSWORD,
-  database: process.env.CLICKHOUSE_DB,
-  max_open_connections: 10,
-  keep_alive: { enabled: true },
-  ssl: { 
-    rejectUnauthorized: false,
-    minVersion: 'TLSv1.2',
-    maxVersion: 'TLSv1.3',
-    // Add secure ciphers
-    ciphers: 'TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384',
-    secureProtocol: 'TLSv1_2_method'
-  }
-})
+    MongooseModule.forRoot(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      retryAttempts: 3,
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      ssl: process.env.NODE_ENV === 'production',
+      sslValidate: false,
+      tls: true,
+      tlsInsecure: true,
+      socket: {
+        tls: process.env.NODE_ENV === 'production' && {
+          minVersion: 'TLSv1.2',
+          maxVersion: 'TLSv1.3',
+          rejectUnauthorized: false,
+          servername: process.env.MONGODB_HOST
+        }
+      }
+    }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      useFactory: async () => ({
+        store: await redisStore({
+          ttl: process.env.REDIS_CACHE_TTL ? +process.env.REDIS_CACHE_TTL : 5000,
+          url: process.env.REDIS_URL,
+          socket: {
+            tls: process.env.NODE_ENV === 'production'
+          },
+          commandsQueueMaxLength: 10000
+        }),
+      }),
+    }),
     QueueModule.forRoot({
       connection: {
         uri: process.env.RMQ_CONNECTION_URI ?? 'amqp://localhost',
