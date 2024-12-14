@@ -16,6 +16,7 @@ import * as os from 'os';
 import * as https from 'https'; 
 import { TLSSocket } from 'tls';
 import { SecureContextOptions } from 'tls';
+import * as tls from 'tls';
 
 const morgan = require('morgan');
 
@@ -96,7 +97,11 @@ if (cluster.isPrimary) {
         new ExpressAdapter(expressApp),
         {
           rawBody: true,
-          httpsOptions: process.env.NODE_ENV === 'production' ? undefined : {
+          httpsOptions: process.env.NODE_ENV === 'production' ? {
+            secureOptions: tls.constants.SSL_OP_NO_TLSv1 | tls.constants.SSL_OP_NO_TLSv1_1,
+            minVersion: 'TLSv1.2',
+            maxVersion: 'TLSv1.3'
+          } : {
             key: process.env.KEY_PATH ? readFileSync(process.env.KEY_PATH, 'utf8') : undefined,
             cert: process.env.CERT_PATH ? readFileSync(process.env.CERT_PATH, 'utf8') : undefined,
             ...process.env.NODE_ENV !== 'production' && {
