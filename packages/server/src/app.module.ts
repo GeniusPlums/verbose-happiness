@@ -55,6 +55,8 @@ import { QueueModule } from '@/common/services/queue/queue.module';
 import { ClickHouseModule } from '@/common/services/clickhouse/clickhouse.module';
 import { ChannelsModule } from './api/channels/channels.module';
 import { TlsOptions } from 'tls';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { mongodbConfig, redisConfig } from './config/configuration';
 
 const sensitiveKeys = [/cookie/i, /passw(or)?d/i, /^pw$/i, /^pass$/i, /secret/i, /token/i, /api[-._]?key/i];
 
@@ -122,54 +124,56 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
 
 @Module({
   imports: [
-    ...(process.env.SERVE_CLIENT_FROM_NEST
-      ? [
-        ServeStaticModule.forRoot({
-          rootPath: process.env.CLIENT_PATH
-            ? process.env.CLIENT_PATH
-            : join(__dirname, '../../../', 'client/build/'),
-          exclude: ['api/*'],
-        }),
-      ]
-      : []),
-    MongooseModule.forRoot(formatMongoConnectionString(process.env.MONGODB_URI), {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  retryAttempts: Number(process.env.MONGODB_RETRY_ATTEMPTS) || 3,
-  connectTimeoutMS: Number(process.env.MONGODB_CONNECT_TIMEOUT_MS) || 10000,
-  socketTimeoutMS: Number(process.env.MONGODB_SOCKET_TIMEOUT_MS) || 45000,
-  ssl: process.env.MONGODB_SSL === 'true',
-  tls: process.env.MONGODB_TLS === 'true',
-  tlsInsecure: process.env.MONGODB_TLS_INSECURE === 'true',
-  directConnection: process.env.MONGODB_DIRECT_CONNECTION === 'true',
-  tlsAllowInvalidCertificates: process.env.MONGODB_ALLOW_INVALID_CERTS === 'true',
-  tlsAllowInvalidHostnames: process.env.MONGODB_ALLOW_INVALID_HOSTNAMES === 'true',
-  socket: {
-    tls: {
-      secureProtocol: process.env.MONGODB_TLS_PROTOCOL || 'TLS_method',
-      minVersion: process.env.MONGODB_TLS_MIN_VERSION || 'TLSv1.2',
-      maxVersion: process.env.MONGODB_TLS_MAX_VERSION || 'TLSv1.3',
-      rejectUnauthorized: process.env.MONGODB_REJECT_UNAUTHORIZED === 'true',
-      servername: process.env.MONGODB_HOST,
-      ciphers: process.env.MONGODB_CIPHERS || [
-        'ECDHE-ECDSA-AES128-GCM-SHA256',
-        'ECDHE-RSA-AES128-GCM-SHA256',
-        'ECDHE-ECDSA-AES256-GCM-SHA384',
-        'ECDHE-RSA-AES256-GCM-SHA384',
-        'AES256-GCM-SHA384',
-        'AES128-GCM-SHA256'
-      ].join(':')
-    }
-  }
-}),
-    CacheModule.registerAsync({
+    ConfigModule.forRoot({
+      load: [mongodbConfig, redisConfig],
       isGlobal: true,
-      useFactory: async () => ({
-        store: await redisStore({
-          ttl: process.env.REDIS_CACHE_TTL ? +process.env.REDIS_CACHE_TTL : 5000,
-          url: process.env.REDIS_URL,
+    }),
+    MongooseModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const config = configService.get('mongodb');
+        return {
+          uri: formatMongoConnectionString(config.uri),
+          useNewUrlParser: true,
+          useUnifiedTopology: true,
+          retryAttempts: config.retryAttempts,
+          connectTimeoutMS: config.connectTimeoutMS,
+          socketTimeoutMS: config.socketTimeoutMS,
+          ssl: config.ssl,
+          tls: config.tls,
+          tlsInsecure: config.tlsInsecure,
+          directConnection: config.directConnection,
+          tlsAllowInvalidCertificates: config.allowInvalidCerts,
+          tlsAllowInvalidHostnames: config.allowInvalidHostnames,
           socket: {
-            tls: process.env.NODE_ENV === 'production'
+            tls: {
+              secureProtocol: config.tlsProtocol,
+              minVersion: config.tlsMinVersion,
+              maxVersion: config.tlsMaxVersion,
+              rejectUnauthorized: config.rejectUnauthorized,
+              servername: config.host,
+              ciphers: config.ciphers || [
+                'ECDHE-ECDSA-AES128-GCM-SHA256',
+                'ECDHE-RSA-AES128-GCM-SHA256',
+                'ECDHE-ECDSA-AES256-GCM-SHA384',
+                'ECDHE-RSA-AES256-GCM-SHA384',
+                'AES256-GCM-SHA384',
+                'AES128-GCM-SHA256'
+              ].join(':')
+            }
+          }
+        };
+      },
+    }),
+    CacheModule.registerAsync({
+      inject: [ConfigService],
+      isGlobal: true,
+      useFactory: async (configService: ConfigService) => ({
+        store: await redisStore({
+          ttl: configService.get('redis.ttl'),
+          url: configService.get('redis.url'),
+          socket: {
+            tls: configService.get('redis.tls')
           },
           commandsQueueMaxLength: 10000
         }),
