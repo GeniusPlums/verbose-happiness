@@ -132,21 +132,19 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
       isGlobal: true,
     }),
     MongooseModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGODB_URI'),
-        ssl: process.env.NODE_ENV === 'production',
-        tls: process.env.NODE_ENV === 'production',
-        tlsCAFile: undefined,
-        retryWrites: true,
-        w: 'majority',
-        retryAttempts: 5,
+      useFactory: () => ({
+        uri: process.env.MONGODB_URI?.replace('MONGODB_URI=', ''),
         useNewUrlParser: true,
         useUnifiedTopology: true,
-        serverSelectionTimeoutMS: 5000,
-        socketTimeoutMS: 45000,
-      }),
-      inject: [ConfigService],
+        tls: true,
+        tlsAllowInvalidCertificates: true,
+        tlsInsecure: true,
+        ssl: true,
+        sslValidate: false,
+        tlsCAFile: undefined,
+        minVersion: 'TLSv1.2',
+        maxVersion: 'TLSv1.3'
+      })
     }),
     CacheModule.registerAsync({
       inject: [ConfigService],

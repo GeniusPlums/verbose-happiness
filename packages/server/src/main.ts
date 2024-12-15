@@ -1,9 +1,12 @@
+import mongoose from 'mongoose';
 import p from '../package.json';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter, NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
+import { WinstonModule } from 'nest-winston';
+import * as winston from 'winston';
 import { urlencoded } from 'body-parser';
 import { readFileSync } from 'fs';
 import * as Sentry from '@sentry/node';
@@ -94,7 +97,29 @@ if (cluster.isPrimary) {
     let app;
 
     if (process.env.LAUDSPEAKER_PROCESS_TYPE == 'WEB') {
-      const app = await NestFactory.create(
+      // Fix MongoDB connection options
+      const mongoUri = process.env.MONGODB_URI?.replace('MONGODB_URI=', '');
+      process.env.MONGODB_URI = mongoUri;
+
+      // Add TLS options for SSL
+      const tlsOptions = {
+        minVersion: 'TLSv1.2',
+        maxVersion: 'TLSv1.3'
+      };
+
+      const mongooseOptions = {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+        ssl: true,
+        tls: true,
+        tlsAllowInvalidCertificates: true,
+        tlsInsecure: true,
+        ...tlsOptions
+      };
+
+      await mongoose.connect(process.env.MONGODB_URI, mongooseOptions);
+
+      app = await NestFactory.create<NestExpressApplication>(
         AppModule,
         new ExpressAdapter(expressApp),
         {
@@ -102,16 +127,22 @@ if (cluster.isPrimary) {
           httpsOptions: process.env.NODE_ENV === 'production' ? {
             cert: process.env.CERT_PATH ? readFileSync(process.env.CERT_PATH, 'utf8') : undefined,
             key: process.env.KEY_PATH ? readFileSync(process.env.KEY_PATH, 'utf8') : undefined,
-            minVersion: 'TLSv1.2',
-            maxVersion: 'TLSv1.3',
+            secureOptions: constants.SSL_OP_NO_TLSv1 | constants.SSL_OP_NO_TLSv1_1,
             ciphers: [
-              'TLS_AES_256_GCM_SHA384',
-              'TLS_CHACHA20_POLY1305_SHA256',
-              'TLS_AES_128_GCM_SHA256',
               'ECDHE-RSA-AES256-GCM-SHA384',
               'ECDHE-RSA-AES128-GCM-SHA256'
-            ].join(':')
-          } as ServerOptions : undefined
+            ]
+          } as any : undefined,
+          logger: WinstonModule.createLogger({
+            transports: [
+              new winston.transports.Console({
+                format: winston.format.combine(
+                  winston.format.timestamp(),
+                  winston.format.json()
+                )
+              })
+            ]
+          })
         }
       );
 
