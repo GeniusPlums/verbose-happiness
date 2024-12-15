@@ -108,11 +108,10 @@ if (cluster.isPrimary) {
         connectTimeoutMS: 10000,
         socketTimeoutMS: 45000,
         retryWrites: true,
-        tlsCAFile: undefined,
         directConnection: true
       };
 
-      await mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://2f1YzyuwkogQRbWa:2f1YzyuwkogQRbWa@astrazen.q4mjj.mongodb.net/?tls=true&authSource=admin', mongooseOptions);
+      await mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://2f1YzyuwkogQRbWa:2f1YzyuwkogQRbWa@astrazen.q4mjj.mongodb.net/?tls=true&tlsInsecure=true&authSource=admin', mongooseOptions);
 
       expressApp = express();
 
