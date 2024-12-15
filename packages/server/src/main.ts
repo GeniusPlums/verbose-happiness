@@ -100,18 +100,15 @@ if (cluster.isPrimary) {
       const mongooseOptions = {
         useNewUrlParser: true,
         useUnifiedTopology: true,
-        ssl: false,
         tls: true,
         tlsAllowInvalidCertificates: true,
-        tlsInsecure: true,
+        tlsAllowInvalidHostnames: true,
         minPoolSize: 0,
         maxPoolSize: 10,
         connectTimeoutMS: 10000,
         socketTimeoutMS: 45000,
         retryWrites: true,
         directConnection: true,
-        tlsCAFile: undefined,
-        tlsAllowInvalidHostnames: true,
         serverSelectionTimeoutMS: 5000
       };
 
@@ -128,11 +125,14 @@ if (cluster.isPrimary) {
           httpsOptions: process.env.NODE_ENV === 'production' ? {
             cert: process.env.CERT_PATH ? readFileSync(process.env.CERT_PATH, 'utf8') : undefined,
             key: process.env.KEY_PATH ? readFileSync(process.env.KEY_PATH, 'utf8') : undefined,
-            secureOptions: constants.SSL_OP_NO_TLSv1 | constants.SSL_OP_NO_TLSv1_1,
+            minVersion: 'TLSv1.2',
             ciphers: [
               'ECDHE-RSA-AES256-GCM-SHA384',
-              'ECDHE-RSA-AES128-GCM-SHA256'
-            ]
+              'ECDHE-RSA-AES128-GCM-SHA256',
+              'DHE-RSA-AES256-GCM-SHA384',
+              'DHE-RSA-AES128-GCM-SHA256'
+            ].join(':'),
+            honorCipherOrder: true
           } as any : undefined,
           logger: WinstonModule.createLogger({
             transports: [
