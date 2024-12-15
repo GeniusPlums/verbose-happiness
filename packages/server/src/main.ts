@@ -40,7 +40,7 @@ if (cluster.isPrimary) {
   console.log(`[${process.env.LAUDSPEAKER_PROCESS_TYPE}] Starting.`);
   console.log(`Number of processes to create: ${numProcesses}`);
   // Fork workers.
-  for (let i = 0; i < numProcesses; i++) {
+  for (let i = 0; i <numProcesses; i++) {
     let p = cluster.fork();
 
     console.log(`[${process.pid}] Forked process ${p.process.pid}`);
@@ -100,18 +100,23 @@ if (cluster.isPrimary) {
       const mongooseOptions = {
         useNewUrlParser: true,
         useUnifiedTopology: true,
+        ssl: false,
         tls: true,
-        tlsInsecure: true,
         tlsAllowInvalidCertificates: true,
+        tlsInsecure: true,
         minPoolSize: 0,
         maxPoolSize: 10,
         connectTimeoutMS: 10000,
         socketTimeoutMS: 45000,
         retryWrites: true,
-        directConnection: true
+        directConnection: true,
+        tlsCAFile: undefined,
+        tlsAllowInvalidHostnames: true,
+        serverSelectionTimeoutMS: 5000
       };
 
-      await mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://2f1YzyuwkogQRbWa:2f1YzyuwkogQRbWa@astrazen.q4mjj.mongodb.net/?tls=true&tlsInsecure=true&authSource=admin', mongooseOptions);
+      const uri = 'mongodb+srv://2f1YzyuwkogQRbWa:2f1YzyuwkogQRbWa@astrazen.q4mjj.mongodb.net/?authSource=admin';
+      await mongoose.connect(process.env.MONGODB_URI || uri, mongooseOptions);
 
       expressApp = express();
 
