@@ -23,10 +23,18 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD=
 
-# Mongo
-MONGOOSE_URL=mongodb://127.0.0.1:27017/nest?directConnection=true
-# Need the db name for mongo change stream connector & consumer
-MONGO_DB_NAME=nest
+# MongoDB Configuration
+MONGODB_URI=mongodb+srv://2f1YzyuwkogQRbWa:2f1YzyuwkogQRbWa@astrazen.q4mjj.mongodb.net/?authSource=admin
+MONGODB_HOST=astrazen.q4mjj.mongodb.net
+MONGODB_TLS=true
+MONGODB_TLS_INSECURE=true
+MONGODB_TLS_MAX_VERSION=TLSv1.3
+MONGODB_TLS_MIN_VERSION=TLSv1.2
+MONGODB_SERVER_SELECTION_TIMEOUT_MS=5000
+MONGODB_DIRECT_CONNECTION=true
+MONGODB_ALLOW_INVALID_HOSTNAMES=true
+MONGODB_CONNECT_TIMEOUT_MS=10000
+MONGODB_SOCKET_TIMEOUT_MS=45000
 
 # Email Conf
 MAGIC_EMAIL_KEY=[YOUR_VALUE]
