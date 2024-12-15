@@ -175,19 +175,38 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
       inject: [],
     }),
     TypeOrmModule.forRootAsync({
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get('DB_HOST'),
-        port: configService.get('DB_PORT'),
-        username: configService.get('DB_USER'),
-        password: configService.get('DB_PASSWORD'),
-        database: configService.get('DB_NAME'),
-        ssl: false,
-        entities: ['dist/**/*.entity.{ts,js}'],
-        migrations: ['dist/**/migrations/*.{ts,js}'],
-        autoLoadEntities: true,
-        synchronize: false,
-      }),
+      useFactory: (configService: ConfigService) => {
+        const url = configService.get('DATABASE_URL') || configService.get('DB_URL');
+        
+        if (url) {
+          return {
+            url,
+            ssl: {
+              rejectUnauthorized: false
+            },
+            entities: ['dist/**/*.entity.{ts,js}'],
+            migrations: ['dist/**/migrations/*.{ts,js}'],
+            autoLoadEntities: true,
+            synchronize: false,
+          };
+        }
+
+        return {
+          type: 'postgres',
+          host: configService.get('DATABASE_HOST') || configService.get('DB_HOST'),
+          port: configService.get('DATABASE_PORT') || configService.get('DB_PORT'),
+          username: configService.get('DATABASE_USER') || configService.get('DB_USER'),
+          password: configService.get('DATABASE_PASSWORD') || configService.get('DB_PASSWORD'),
+          database: configService.get('DATABASE_NAME') || configService.get('DB_NAME'),
+          ssl: {
+            rejectUnauthorized: false
+          },
+          entities: ['dist/**/*.entity.{ts,js}'],
+          migrations: ['dist/**/migrations/*.{ts,js}'],
+          autoLoadEntities: true,
+          synchronize: false,
+        };
+      },
       inject: [ConfigService],
     }),
     ApiModule,
