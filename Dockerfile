@@ -17,11 +17,6 @@ RUN apt-get update && \
     && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and install Render's CA certificate
-RUN wget https://dl.render.com/render-ca.crt && \
-    mv render-ca.crt /usr/local/share/ca-certificates/ && \
-    update-ca-certificates
-
 # Set Node to use system CA certificates
 ENV NODE_OPTIONS="--use-openssl-ca"
 
