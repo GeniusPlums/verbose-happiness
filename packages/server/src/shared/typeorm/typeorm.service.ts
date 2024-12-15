@@ -49,16 +49,11 @@ export class TypeOrmConfigService implements TypeOrmOptionsFactory {
       database: process.env.DB_NAME,
       username: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
-      ssl: process.env.DB_SSL === 'true' ? {
-        rejectUnauthorized: false
-      } : false,
+      ssl: true,
       extra: {
-        ssl: process.env.DB_SSL === 'true' ? {
-          rejectUnauthorized: false,
-          secureOptions: require('constants').SSL_OP_NO_TLSv1 | require('constants').SSL_OP_NO_TLSv1_1
-        } : false,
-        max: maxDBConnectionsPerReplicaProcess,
-        options: '-c lock_timeout=240000ms -c statement_timeout=240000ms -c idle_in_transaction_session_timeout=240000ms',
+        ssl: {
+          rejectUnauthorized: false
+        }
       },
       entities: ['dist/**/*.entity.{ts,js}'],
       migrations: ['dist/**/migrations/*.{ts,js}'],
