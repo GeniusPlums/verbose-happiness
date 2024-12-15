@@ -101,7 +101,7 @@ if (cluster.isPrimary) {
         useNewUrlParser: true,
         useUnifiedTopology: true,
         ssl: true,
-        sslValidate: true,
+        tlsAllowInvalidCertificates: true,
         retryWrites: true,
       };
 
