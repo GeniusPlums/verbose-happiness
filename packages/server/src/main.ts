@@ -97,13 +97,7 @@ if (cluster.isPrimary) {
     let expressApp;
 
     if (process.env.LAUDSPEAKER_PROCESS_TYPE == 'WEB') {
-      const mongooseOptions = {
-        tls: true,
-        tlsAllowInvalidCertificates: false,
-        tlsCAFile: process.env.MONGODB_CA_PATH,
-        useNewUrlParser: true,
-        useUnifiedTopology: true
-      };
+      const mongooseOptions = {};
 
       const uri = 'mongodb+srv://2f1YzyuwkogQRbWa:2f1YzyuwkogQRbWa@astrazen.q4mjj.mongodb.net/?authSource=admin';
       await mongoose.connect(process.env.MONGODB_URI || uri, mongooseOptions);
@@ -115,18 +109,6 @@ if (cluster.isPrimary) {
         new ExpressAdapter(expressApp),
         {
           rawBody: true,
-          httpsOptions: process.env.NODE_ENV === 'production' ? {
-            minVersion: 'TLSv1.2',
-            ciphers: [
-              'ECDHE-ECDSA-AES128-GCM-SHA256',
-              'ECDHE-RSA-AES128-GCM-SHA256',
-              'ECDHE-ECDSA-AES256-GCM-SHA384',
-              'ECDHE-RSA-AES256-GCM-SHA384'
-            ].join(':'),
-            honorCipherOrder: true,
-            key: readFileSync(process.env.SSL_KEY_PATH),
-            cert: readFileSync(process.env.SSL_CERT_PATH)
-          } as any : undefined,
           logger: WinstonModule.createLogger({
             transports: [
               new winston.transports.Console({

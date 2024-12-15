@@ -20,6 +20,7 @@ RUN apt-get update && \
 # Set Node to use system CA certificates and handle self-signed certificates
 ENV NODE_OPTIONS="--use-openssl-ca"
 ENV NODE_TLS_REJECT_UNAUTHORIZED="0"
+ENV PGSSLMODE="require"
 
 # Debug: Check if package.json exists in base
 RUN ls -la /app/package.json || echo "No package.json in base"
@@ -140,7 +141,9 @@ const dataSource = new DataSource({\n\
     : ['query', 'error', 'warn'],  // Development logging\n\
   synchronize: false,\n\
   ssl: process.env.DB_SSL === 'true' ? {\n\
-    rejectUnauthorized: false\n\
+    rejectUnauthorized: false,\n\
+    sslmode: 'require',\n\
+    ssl: true\n\
   } : false\n\
 });\n\
 \n\

@@ -174,7 +174,22 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
       }),
       inject: [],
     }),
-    TypeOrmModule.forRootAsync({ useClass: TypeOrmConfigService }),
+    TypeOrmModule.forRootAsync({
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        host: configService.get('DB_HOST'),
+        port: configService.get('DB_PORT'),
+        username: configService.get('DB_USER'),
+        password: configService.get('DB_PASSWORD'),
+        database: configService.get('DB_NAME'),
+        ssl: false,
+        entities: ['dist/**/*.entity.{ts,js}'],
+        migrations: ['dist/**/migrations/*.{ts,js}'],
+        autoLoadEntities: true,
+        synchronize: false,
+      }),
+      inject: [ConfigService],
+    }),
     ApiModule,
     MongooseModule.forFeature([
       { name: Customer.name, schema: CustomerSchema },
@@ -203,13 +218,7 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
       database: process.env.CLICKHOUSE_DB,
       max_open_connections: 10,
       keep_alive: { enabled: true },
-      ssl: { 
-        rejectUnauthorized: false,
-        minVersion: 'TLSv1.2',
-        maxVersion: 'TLSv1.3',
-        ciphers: 'TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256:ECDHE-RSA-AES128-GCM-SHA256',
-        secureProtocol: 'TLSv1_2_method'
-      }
+      ssl: false
     }),
     HttpModule.register({
       httpsAgent: new https.Agent({
