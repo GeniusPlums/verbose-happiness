@@ -17,10 +17,11 @@ RUN apt-get update && \
     && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Set Node to use system CA certificates
+# Set Node to use system CA certificates and handle self-signed certificates
 ENV NODE_OPTIONS="--use-openssl-ca"
+ENV NODE_TLS_REJECT_UNAUTHORIZED="0"
 
-# Debug: Check if package.json exists in base stage
+# Debug: Check if package.json exists in base
 RUN ls -la /app/package.json || echo "No package.json in base"
 
 # Frontend build stage
