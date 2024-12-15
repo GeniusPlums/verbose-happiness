@@ -51,15 +51,8 @@ export class TypeOrmConfigService implements TypeOrmOptionsFactory {
       password: process.env.DB_PASSWORD,
       ssl: process.env.DB_SSL === 'true' ? {
         rejectUnauthorized: false,
-        ssl: true,
-        sslmode: 'require',
-        extra: {
-          ssl: {
-            rejectUnauthorized: false,
-            minVersion: 'TLSv1.2',
-            maxVersion: 'TLSv1.3'
-          }
-        }
+        minVersion: 'TLSv1.2',
+        maxVersion: 'TLSv1.3'
       } : false,
       entities: ['dist/**/*.entity.{ts,js}'],
       migrations: ['dist/**/migrations/*.{ts,js}'],
