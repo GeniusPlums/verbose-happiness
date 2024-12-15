@@ -348,7 +348,13 @@ ENV PORT=3000 \
     NPM_CONFIG_PREFIX=/home/appuser/.npm-global \
     TYPEORM_CONFIG=/app/typeorm.config.cjs \
     TS_NODE_PROJECT=tsconfig.json \
-    JWT_KEY=h1E8OZF6TcLfofpWjQxS5sNRgRb9Mgc33dtYtBr1mAkqn7vXiIU4PKy2CDVz0GeY
+    JWT_KEY=h1E8OZF6TcLfofpWjQxS5sNRgRb9Mgc33dtYtBr1mAkqn7vXiIU4PKy2CDVz0GeY \
+    DATABASE_HOST=project_postgres_1 \
+    DATABASE_NAME=laudspeaker \
+    DATABASE_USER=postgres \
+    DATABASE_PASSWORD=postgres \
+    DATABASE_PORT=5432 \
+    DATABASE_SSL=false
 
 # Install global packages
 RUN npm config set prefix '/home/appuser/.npm-global' && \

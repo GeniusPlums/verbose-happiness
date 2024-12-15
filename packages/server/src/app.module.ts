@@ -176,7 +176,7 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
     }),
     TypeOrmModule.forRootAsync({
       useFactory: (configService: ConfigService) => {
-        const url = configService.get('DATABASE_URL') || configService.get('DB_URL');
+        const url = configService.get('DATABASE_URL');
         
         if (url) {
           return {
@@ -184,7 +184,8 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
             url,
             ssl: {
               rejectUnauthorized: false,
-              minVersion: 'TLSv1'
+              minVersion: 'TLSv1.2',
+              maxVersion: 'TLSv1.3'
             },
             entities: ['dist/**/*.entity.{ts,js}'],
             migrations: ['dist/**/migrations/*.{ts,js}'],
@@ -195,14 +196,15 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
 
         return {
           type: 'postgres',
-          host: configService.get('DATABASE_HOST') || configService.get('DB_HOST'),
-          port: configService.get('DATABASE_PORT') || configService.get('DB_PORT'),
-          username: configService.get('DATABASE_USER') || configService.get('DB_USER'),
-          password: configService.get('DATABASE_PASSWORD') || configService.get('DB_PASSWORD'),
-          database: configService.get('DATABASE_NAME') || configService.get('DB_NAME'),
+          host: configService.get('DATABASE_HOST'),
+          port: configService.get('DATABASE_PORT'),
+          username: configService.get('DATABASE_USER'),
+          password: configService.get('DATABASE_PASSWORD'),
+          database: configService.get('DATABASE_NAME'),
           ssl: {
             rejectUnauthorized: false,
-            minVersion: 'TLSv1'
+            minVersion: 'TLSv1.2',
+            maxVersion: 'TLSv1.3'
           },
           entities: ['dist/**/*.entity.{ts,js}'],
           migrations: ['dist/**/migrations/*.{ts,js}'],
