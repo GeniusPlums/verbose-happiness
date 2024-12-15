@@ -49,7 +49,7 @@ export class TypeOrmConfigService implements TypeOrmOptionsFactory {
       database: process.env.DB_NAME,
       username: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
-      ssl: false,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false,
       extra: undefined,
       entities: ['dist/**/*.entity.{ts,js}'],
       migrations: ['dist/**/migrations/*.{ts,js}'],

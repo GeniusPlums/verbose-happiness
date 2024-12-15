@@ -97,7 +97,9 @@ if (cluster.isPrimary) {
     let expressApp;
 
     if (process.env.LAUDSPEAKER_PROCESS_TYPE == 'WEB') {
-      const mongooseOptions = {};
+      const mongooseOptions = process.env.NODE_ENV === 'production' 
+        ? { ssl: true, sslValidate: true }
+        : {};
 
       const uri = 'mongodb+srv://2f1YzyuwkogQRbWa:2f1YzyuwkogQRbWa@astrazen.q4mjj.mongodb.net/?authSource=admin';
       await mongoose.connect(process.env.MONGODB_URI || uri, mongooseOptions);
