@@ -180,9 +180,11 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
         
         if (url) {
           return {
+            type: 'postgres',
             url,
             ssl: {
-              rejectUnauthorized: false
+              rejectUnauthorized: false,
+              minVersion: 'TLSv1'
             },
             entities: ['dist/**/*.entity.{ts,js}'],
             migrations: ['dist/**/migrations/*.{ts,js}'],
@@ -199,7 +201,8 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
           password: configService.get('DATABASE_PASSWORD') || configService.get('DB_PASSWORD'),
           database: configService.get('DATABASE_NAME') || configService.get('DB_NAME'),
           ssl: {
-            rejectUnauthorized: false
+            rejectUnauthorized: false,
+            minVersion: 'TLSv1'
           },
           entities: ['dist/**/*.entity.{ts,js}'],
           migrations: ['dist/**/migrations/*.{ts,js}'],
