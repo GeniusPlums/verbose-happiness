@@ -102,7 +102,14 @@ if (cluster.isPrimary) {
         useUnifiedTopology: true,
         tls: true,
         tlsInsecure: true,
-        retryWrites: true
+        tlsAllowInvalidCertificates: true,
+        minPoolSize: 0,
+        maxPoolSize: 10,
+        connectTimeoutMS: 10000,
+        socketTimeoutMS: 45000,
+        retryWrites: true,
+        tlsCAFile: undefined,
+        directConnection: true
       };
 
       await mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://2f1YzyuwkogQRbWa:2f1YzyuwkogQRbWa@astrazen.q4mjj.mongodb.net/?tls=true&authSource=admin', mongooseOptions);
