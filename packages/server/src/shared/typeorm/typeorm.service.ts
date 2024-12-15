@@ -50,10 +50,16 @@ export class TypeOrmConfigService implements TypeOrmOptionsFactory {
       username: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
       ssl: process.env.DB_SSL === 'true' ? {
-        rejectUnauthorized: false,
-        minVersion: 'TLSv1.2',
-        maxVersion: 'TLSv1.3'
+        rejectUnauthorized: false
       } : false,
+      extra: {
+        ssl: process.env.DB_SSL === 'true' ? {
+          rejectUnauthorized: false,
+          secureOptions: require('constants').SSL_OP_NO_TLSv1 | require('constants').SSL_OP_NO_TLSv1_1
+        } : false,
+        max: maxDBConnectionsPerReplicaProcess,
+        options: '-c lock_timeout=240000ms -c statement_timeout=240000ms -c idle_in_transaction_session_timeout=240000ms',
+      },
       entities: ['dist/**/*.entity.{ts,js}'],
       migrations: ['dist/**/migrations/*.{ts,js}'],
       migrationsTableName: 'typeorm_migrations',
@@ -62,10 +68,6 @@ export class TypeOrmConfigService implements TypeOrmOptionsFactory {
       synchronize: false,
       autoLoadEntities: true,
       maxQueryExecutionTime: 2000,
-      extra: {
-        max: maxDBConnectionsPerReplicaProcess,
-        options: '-c lock_timeout=240000ms -c statement_timeout=240000ms -c idle_in_transaction_session_timeout=240000ms',
-      },
     };
 
     console.log('PostgreSQL Configuration:', postgresConfig);
