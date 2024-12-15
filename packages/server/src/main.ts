@@ -100,12 +100,12 @@ if (cluster.isPrimary) {
       const mongooseOptions = {
         useNewUrlParser: true,
         useUnifiedTopology: true,
-        ssl: true,
-        tlsAllowInvalidCertificates: true,
-        retryWrites: true,
+        tls: true,
+        tlsInsecure: true,
+        retryWrites: true
       };
 
-      await mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://2f1YzyuwkogQRbWa:2f1YzyuwkogQRbWa@astrazen.q4mjj.mongodb.net/?ssl=true&authSource=admin', mongooseOptions);
+      await mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://2f1YzyuwkogQRbWa:2f1YzyuwkogQRbWa@astrazen.q4mjj.mongodb.net/?tls=true&authSource=admin', mongooseOptions);
 
       expressApp = express();
 
