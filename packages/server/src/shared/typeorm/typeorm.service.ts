@@ -51,13 +51,13 @@ export class TypeOrmConfigService implements TypeOrmOptionsFactory {
       password: process.env.DB_PASSWORD,
       ssl: process.env.DB_SSL === 'true' ? {
         rejectUnauthorized: false,
-        minVersion: 'TLSv1.2',
+        minVersion: 'TLSv1.3',  // PostgreSQL 16 fully supports TLS 1.3
         maxVersion: 'TLSv1.3'
       } : false,
       extra: process.env.DB_SSL === 'true' ? {
         ssl: {
           rejectUnauthorized: false,
-          sslmode: 'require'
+          sslmode: 'verify-full'  // PostgreSQL 16 recommended mode for maximum security
         }
       } : undefined,
       entities: ['dist/**/*.entity.{ts,js}'],
