@@ -93,31 +93,21 @@ if (cluster.isPrimary) {
     expressApp.use(Sentry.Handlers.errorHandler());
   }
 
-  async function initializeApp(expressApp) {
-    let app;
+  async function initializeApp(app) {
+    let expressApp;
 
     if (process.env.LAUDSPEAKER_PROCESS_TYPE == 'WEB') {
-      // Fix MongoDB connection options
-      const mongoUri = process.env.MONGODB_URI?.replace('MONGODB_URI=', '');
-      process.env.MONGODB_URI = mongoUri;
-
-      // Add TLS options for SSL
-      const tlsOptions = {
-        minVersion: 'TLSv1.2',
-        maxVersion: 'TLSv1.3'
-      };
-
       const mongooseOptions = {
         useNewUrlParser: true,
         useUnifiedTopology: true,
         ssl: true,
-        tls: true,
-        tlsAllowInvalidCertificates: true,
-        tlsInsecure: true,
-        ...tlsOptions
+        sslValidate: true,
+        retryWrites: true,
       };
 
-      await mongoose.connect(process.env.MONGODB_URI, mongooseOptions);
+      await mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://2f1YzyuwkogQRbWa:2f1YzyuwkogQRbWa@astrazen.q4mjj.mongodb.net/?ssl=true&authSource=admin', mongooseOptions);
+
+      expressApp = express();
 
       app = await NestFactory.create<NestExpressApplication>(
         AppModule,
@@ -193,19 +183,27 @@ if (cluster.isPrimary) {
 
   async function bootstrap() {
     const expressApp = express();
+    const app = await NestFactory.create<NestExpressApplication>(
+      AppModule,
+      new ExpressAdapter(expressApp),
+      {
+        logger: WinstonModule.createLogger({
+          instance: winston.createLogger({
+            level: 'info',
+            format: winston.format.json(),
+            transports: [new winston.transports.Console()],
+          }),
+        }),
+      }
+    );
 
-    initializeSentry(expressApp);
-
-    const app: NestExpressApplication = await initializeApp(expressApp);
-    const port: number = parseInt(process.env.PORT);
-
-    if (process.env.LAUDSPEAKER_PROCESS_TYPE == 'WEB') {
-      await app.listen(port, () => {
-        console.log('[WEB]', `http://localhost:${port}`);
-      });
-    }
-
-    console.log(`[${process.env.LAUDSPEAKER_PROCESS_TYPE}] Started.`);
+    await initializeSentry(app);
+    await initializeApp(app);
+  
+    const port = process.env.PORT || 3001;
+    await app.listen(port, '0.0.0.0', () => {
+      console.log(`Application is running on port ${port}`);
+    });
   }
 
   bootstrap();
