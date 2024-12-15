@@ -98,21 +98,11 @@ if (cluster.isPrimary) {
 
     if (process.env.LAUDSPEAKER_PROCESS_TYPE == 'WEB') {
       const mongooseOptions = {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-        ssl: false,
         tls: true,
-        tlsAllowInvalidCertificates: true,
-        tlsInsecure: true,
-        minPoolSize: 0,
-        maxPoolSize: 10,
-        connectTimeoutMS: 10000,
-        socketTimeoutMS: 45000,
-        retryWrites: true,
-        directConnection: true,
-        tlsCAFile: undefined,
-        tlsAllowInvalidHostnames: true,
-        serverSelectionTimeoutMS: 5000
+        tlsAllowInvalidCertificates: false,
+        tlsCAFile: process.env.MONGODB_CA_PATH,
+        useNewUrlParser: true,
+        useUnifiedTopology: true
       };
 
       const uri = 'mongodb+srv://2f1YzyuwkogQRbWa:2f1YzyuwkogQRbWa@astrazen.q4mjj.mongodb.net/?authSource=admin';
@@ -126,13 +116,16 @@ if (cluster.isPrimary) {
         {
           rawBody: true,
           httpsOptions: process.env.NODE_ENV === 'production' ? {
-            cert: process.env.CERT_PATH ? readFileSync(process.env.CERT_PATH, 'utf8') : undefined,
-            key: process.env.KEY_PATH ? readFileSync(process.env.KEY_PATH, 'utf8') : undefined,
-            secureOptions: constants.SSL_OP_NO_TLSv1 | constants.SSL_OP_NO_TLSv1_1,
+            minVersion: 'TLSv1.2',
             ciphers: [
-              'ECDHE-RSA-AES256-GCM-SHA384',
-              'ECDHE-RSA-AES128-GCM-SHA256'
-            ]
+              'ECDHE-ECDSA-AES128-GCM-SHA256',
+              'ECDHE-RSA-AES128-GCM-SHA256',
+              'ECDHE-ECDSA-AES256-GCM-SHA384',
+              'ECDHE-RSA-AES256-GCM-SHA384'
+            ].join(':'),
+            honorCipherOrder: true,
+            key: readFileSync(process.env.SSL_KEY_PATH),
+            cert: readFileSync(process.env.SSL_CERT_PATH)
           } as any : undefined,
           logger: WinstonModule.createLogger({
             transports: [

@@ -133,14 +133,14 @@ const myFormat = winston.format.printf((info: winston.Logform.TransformableInfo)
     }),
     MongooseModule.forRootAsync({
       useFactory: () => ({
-        uri: process.env.MONGODB_URI || 'mongodb+srv://2f1YzyuwkogQRbWa:2f1YzyuwkogQRbWa@astrazen.q4mjj.mongodb.net/?ssl=true&authSource=admin',
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
+        uri: formatMongoConnectionString(process.env.MONGODB_URI),
         ssl: true,
-        sslValidate: true,
-        retryWrites: true,
-        w: 'majority'
-      }),
+        tls: true,
+        tlsInsecure: false,
+        tlsAllowInvalidCertificates: false,
+        tlsCAFile: process.env.MONGODB_CA_PATH,
+        sslValidate: true
+      })
     }),
     CacheModule.registerAsync({
       inject: [ConfigService],
